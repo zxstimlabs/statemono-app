@@ -1,23 +1,28 @@
 import Foundation
+import StatemonoKit
 
+/// A feed item as the UI shows it, read from the database.
 struct Message: Identifiable, Hashable {
     let id: UUID
-    var text: String
-    var date: Date
-    var preview: LinkPreview?
-}
+    let text: String
+    let date: Date
+    /// The first web link in `text`, found when the item was saved.
+    let link: URL?
+    let preview: LinkPreview?
+    /// When the preview was last fetched. It changes on a reload, so views showing its image load the new one.
+    let previewRevision: Date?
 
-struct LinkPreview: Hashable {
-    var siteName: String?
-    var title: String?
-    var summary: String?
-    var image: PreviewImage?
-}
+    /// Whether a preview fetch has finished for the link, even one that found nothing.
+    var hasFetchedPreview: Bool { previewRevision != nil }
 
-struct PreviewImage: Hashable {
-    var url: URL
-    /// Width over height, known up front so the bubble doesn't jump when the image loads.
-    var aspectRatio: CGFloat
+    init(entry: FeedEntry) {
+        id = entry.item.id
+        text = entry.item.text
+        date = entry.item.createdAt
+        link = entry.item.link
+        preview = entry.preview
+        previewRevision = entry.item.previewFetchedAt
+    }
 }
 
 /// Where a bubble sits in a run of messages sent close together. Only the last one gets a tail.

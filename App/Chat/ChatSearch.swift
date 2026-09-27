@@ -1,8 +1,10 @@
 import Foundation
 import Observation
+import StatemonoKit
 
-/// In-chat search: which messages match the query and which one is showing.
-/// Matching runs in memory for now; it moves to FTS5 in StatemonoKit with the same folding rules.
+/// In-chat search over the whole history, through the database's full-text index (`AppDatabase.search`): every word
+/// must start a word in the message or its preview, ignoring case and tone marks, with đ matching d. Bubbles highlight
+/// matches with the same folding (`SearchText`).
 @MainActor @Observable
 final class ChatSearch {
     var isActive = false
@@ -11,16 +13,25 @@ final class ChatSearch {
     /// Matching message IDs, oldest first.
     private(set) var results: [UUID] = []
     private(set) var currentIndex: Int?
+    /// Discards results from a query that was replaced while it ran.
+    @ObservationIgnored private var generation = 0
 
     var current: UUID? { currentIndex.map { results[$0] } }
     var canShowOlder: Bool { (currentIndex ?? 0) > 0 }
     var canShowNewer: Bool { currentIndex.map { $0 < results.count - 1 } ?? false }
 
-    /// Recomputes the results and selects the newest match.
-    func update(in messages: [Message]) {
+    /// Searches again for the current query and selects the newest match.
+    func update(using database: AppDatabase) {
         terms = SearchText.terms(in: query)
-        results = terms.isEmpty ? [] : messages.filter { SearchText.matches($0, terms: terms) }.map(\.id)
-        currentIndex = results.isEmpty ? nil : results.count - 1
+        generation += 1
+        let generation = generation
+        let query = query
+        Task {
+            let ids = (try? await database.search(query)) ?? []
+            guard generation == self.generation else { return }
+            results = ids
+            currentIndex = ids.isEmpty ? nil : ids.count - 1
+        }
     }
 
     func showOlder() {
@@ -51,14 +62,6 @@ enum SearchText {
 
     static func terms(in query: String) -> [String] {
         query.split(whereSeparator: \.isWhitespace).map { fold(String($0)) }
-    }
-
-    /// Every term has to appear somewhere in the message or its preview.
-    static func matches(_ message: Message, terms: [String]) -> Bool {
-        let fields = [message.text, message.preview?.siteName, message.preview?.title, message.preview?.summary]
-            .compactMap { $0 }
-            .map(fold)
-        return terms.allSatisfy { term in fields.contains { $0.range(of: term, options: options) != nil } }
     }
 
     /// Every occurrence of every term in `text`, as UTF-16 ranges of the original string.

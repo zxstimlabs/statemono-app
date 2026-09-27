@@ -1,16 +1,20 @@
 import SwiftUI
 
 struct ChatView: View {
-    static let coordinateSpace = "chat"
-
     @Environment(ChatStore.self) private var store
     @State private var draft = ""
-    @State private var viewportHeight: CGFloat = 0
     @State private var trafficLightsWidth: CGFloat = 0
     @State private var showsAttachMenu = false
     @State private var search = ChatSearch()
+    @FocusState private var focus: ChatFocus?
     @State private var flashedMessageID: UUID?
     @State private var scrollRequest: ScrollRequest?
+    /// The oldest message's date, read when search opens, so the calendar can reach back through all history.
+    @State private var oldestDate: Date?
+    #if !os(macOS)
+    @State private var scrollsToNewMessage = false
+    #endif
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if os(macOS)
     @State private var scroller = FeedScroller()
     #endif
@@ -18,20 +22,20 @@ struct ChatView: View {
     var body: some View {
         feed
         .safeAreaInset(edge: .top, spacing: 0) {
-            ChatHeader(leadingInset: headerLeadingInset, onSearch: openSearch)
+            ChatHeader(leadingInset: headerLeadingInset, search: search, focus: $focus, onOpenSearch: openSearch, onCloseSearch: closeSearch)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            Composer(text: $draft, onAttach: { setAttachMenu(shown: true) }, onSend: send)
+            Composer(text: $draft, focus: $focus, onAttach: { setAttachMenu(shown: true) }, onSend: send)
                 .padding(.top, 4)
         }
-        // Floats over the feed under the header, like Telegram's, instead of insetting it.
+        // Drops out of the header's search field and floats over the feed, instead of insetting it.
         .overlay(alignment: .top) {
             if search.isActive {
-                SearchBar(search: search, dateRange: dateRange, onJumpToDate: jump(toDay:), onClose: closeSearch)
-                    .padding(.leading, headerLeadingInset)
-                    .padding(.trailing, Metrics.sideMargin)
+                SearchPanel(search: search, dateRange: dateRange, onJumpToDate: jump(toDay:), onClose: closeSearch)
+                    .padding(.leading, headerLeadingInset + Metrics.chromeHeight + Metrics.chromeSpacing)
+                    .padding(.trailing, Metrics.sideMargin + Metrics.chromeHeight + Metrics.chromeSpacing)
                     .padding(.top, Metrics.headerTop + Metrics.chromeHeight + Metrics.chromeSpacing)
-                    .transition(.opacity.combined(with: .offset(y: -8)))
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: -8)))
             }
         }
         .overlay {
@@ -45,7 +49,7 @@ struct ChatView: View {
                     AttachMenu { _ in setAttachMenu(shown: false) }
                         .padding(.leading, Metrics.sideMargin + 12.5)
                         .padding(.bottom, Metrics.composerBottom + 8)
-                        .transition(.scale(scale: 0.9, anchor: .bottomLeading).combined(with: .opacity))
+                        .transition(reduceMotion ? .opacity : .scale(scale: 0.9, anchor: .bottomLeading).combined(with: .opacity))
                 }
             }
         }
@@ -58,16 +62,19 @@ struct ChatView: View {
             }
         }
         #endif
-        .onChange(of: search.query) { search.update(in: store.messages) }
-        .onChange(of: store.messages) { if search.isActive { search.update(in: store.messages) } }
+        .onChange(of: search.query) { search.update(using: store.database) }
         .onChange(of: search.current) { _, id in
             if let id { jump(to: id) }
         }
+        #if !os(macOS)
+        .onChange(of: store.messages.last?.id) { _, id in
+            guard scrollsToNewMessage, let id else { return }
+            scrollsToNewMessage = false
+            scroll(to: id.uuidString, anchor: .bottom)
+        }
+        #endif
         .environment(\.searchTerms, search.isActive ? search.terms : [])
         .background(Theme.background)
-        .coordinateSpace(.named(Self.coordinateSpace))
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { viewportHeight = $0 }
-        .environment(\.chatViewportHeight, viewportHeight)
         #if os(macOS)
         .background {
             TrafficLightsAligner(centerY: Metrics.headerTop + Metrics.chromeHeight / 2, width: $trafficLightsWidth)
@@ -93,17 +100,48 @@ struct ChatView: View {
             // Not lazy: the send slide needs exact heights, and LazyVStack only estimates rows it hasn't shown.
             // Like Telegram, the feed should load a window of messages at a time rather than everything.
             VStack(spacing: 0) {
+                // Reaching the top loads the next page of history, keeping what's on screen in place.
+                if store.hasOlder {
+                    Color.clear
+                        .frame(height: 1)
+                        .onScrollVisibilityChange { visible in
+                            guard visible else { return }
+                            #if os(macOS)
+                            scroller.willPrepend()
+                            #endif
+                            store.loadOlder()
+                        }
+                }
                 ForEach(FeedItem.build(from: store.messages)) { item in
-                    switch item {
-                    case .day(let date):
-                        DaySeparator(date: date)
-                    case .message(let message, let position):
-                        MessageBubble(message: message, position: position, isFlashed: flashedMessageID == message.id)
+                    Group {
+                        switch item {
+                        case .day(let date):
+                            DaySeparator(date: date)
+                        case .message(let message, let position):
+                            MessageBubble(
+                                message: message,
+                                position: position,
+                                isFlashed: flashedMessageID == message.id,
+                                isLoadingPreview: store.loadingPreviews.contains(message.id),
+                                onReloadPreview: { store.reloadPreview(for: message.id) }
+                            )
+                        }
                     }
+                    #if os(macOS)
+                    // Where each row sits, so FeedScroller can glide to it.
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(FeedScroller.contentSpace)) } action: {
+                        scroller.rowFrames[item.id] = $0
+                    }
+                    #endif
                 }
             }
             .padding(.vertical, 4)
+            // Clicking the feed doesn't take focus from the search field, so an empty search is closed here instead.
+            // A gesture on the ScrollView itself never sees the click.
+            .contentShape(Rectangle())
+            .simultaneousGesture(TapGesture().onEnded(closeSearch), isEnabled: search.isActive && search.query.isEmpty)
             #if os(macOS)
+            .coordinateSpace(.named(FeedScroller.contentSpace))
             .background(FeedScrollerAnchor(scroller: scroller))
             #endif
         }
@@ -121,20 +159,31 @@ struct ChatView: View {
 
     /// Days the calendar can jump to: from the first message through today.
     private var dateRange: ClosedRange<Date> {
-        let dates = store.messages.map(\.date) + [.now]
-        return dates.min()!...dates.max()!
+        min(oldestDate ?? .now, .now)...Date.now
     }
 
+    /// Critically damped springs (no bounce) for UI that appears on a click: interruptible, unlike fixed curves.
+    private static let panelSpring = Animation.smooth(duration: 0.25)
+    private static let menuSpring = Animation.smooth(duration: 0.2)
+
     private func openSearch() {
-        withAnimation(.easeOut(duration: 0.2)) { search.isActive = true }
+        oldestDate = try? store.database.oldestItemDate()
+        withAnimation(Self.panelSpring) { search.isActive = true }
     }
 
     private func closeSearch() {
-        withAnimation(.easeOut(duration: 0.2)) { search.close() }
+        withAnimation(Self.panelSpring) { search.close() }
+        #if os(macOS)
+        // The keyboard goes back to the composer. In Telegram the message field is the chat's default responder.
+        focus = .composer
+        #else
+        focus = nil
+        #endif
     }
 
-    /// Centers a search result and flashes its bubble, like Telegram.
+    /// Centers a search result and flashes its bubble, like Telegram. Older results load their page of history first.
     private func jump(to id: UUID) {
+        loadHistory(through: id)
         scroll(to: id.uuidString, anchor: .center)
         flashedMessageID = id
         Task { @MainActor in
@@ -144,19 +193,32 @@ struct ChatView: View {
         }
     }
 
-    /// Scrolls to the first message on or after `date`.
+    /// Scrolls to the first message on or after `date`, loading history back to it if needed.
     private func jump(toDay date: Date) {
         let calendar = Calendar.current
-        guard let message = store.messages.first(where: { $0.date >= calendar.startOfDay(for: date) }) else { return }
+        guard let id = try? store.database.firstItem(onOrAfter: calendar.startOfDay(for: date)) else { return }
+        loadHistory(through: id)
+        guard let message = store.messages.first(where: { $0.id == id }) else { return }
         scroll(to: FeedItem.day(calendar.startOfDay(for: message.date)).id, anchor: .top)
     }
 
+    private func loadHistory(through id: UUID) {
+        guard !store.messages.contains(where: { $0.id == id }) else { return }
+        #if os(macOS)
+        scroller.willPrepend()
+        #endif
+        store.ensureLoaded(id)
+    }
+
     private func scroll(to id: String, anchor: UnitPoint) {
+        #if os(macOS)
+        if scroller.scroll(toRow: id, anchor: anchor) { return }
+        #endif
         scrollRequest = ScrollRequest(id: id, anchor: anchor, serial: (scrollRequest?.serial ?? 0) + 1)
     }
 
     private func setAttachMenu(shown: Bool) {
-        withAnimation(.easeOut(duration: 0.15)) {
+        withAnimation(Self.menuSpring) {
             showsAttachMenu = shown
         }
     }
@@ -168,13 +230,17 @@ struct ChatView: View {
         #endif
         store.send(draft)
         draft = ""
-        #if os(macOS)
-        // Next pass, once the new row is laid out and the document view has grown.
-        Task { @MainActor in scroller.slideToBottom() }
-        #else
-        if let last = store.messages.last { scroll(to: last.id.uuidString, anchor: .bottom) }
+        #if !os(macOS)
+        // The new message arrives from the database a moment later; scroll when it does.
+        scrollsToNewMessage = true
         #endif
     }
+}
+
+/// The text fields in the chat that can hold the keyboard.
+enum ChatFocus: Hashable {
+    case composer
+    case search
 }
 
 /// A jump for the ScrollViewReader to perform. `serial` makes repeated jumps to the same row fire again.
@@ -209,8 +275,6 @@ private struct DaySeparator: View {
 }
 
 extension EnvironmentValues {
-    /// Height of the chat viewport, which the bubble gradient spans.
-    @Entry var chatViewportHeight: CGFloat = 800
     /// Folded search terms to highlight in bubbles; empty when search is closed.
     @Entry var searchTerms: [String] = []
 }

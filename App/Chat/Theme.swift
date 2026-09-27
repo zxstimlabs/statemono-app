@@ -3,9 +3,10 @@ import SwiftUI
 /// Telegram's night theme, measured from a 2x screenshot of Saved Messages on macOS.
 enum Theme {
     static let background = Color(hex: 0x12181F)
-    /// Outgoing bubbles share one gradient pinned to the window, so a bubble's color depends on where it sits.
+    /// Outgoing bubbles share one gradient pinned to the window, #4B6DA7 at the top to #42639C at the bottom,
+    /// so a bubble's color depends on where it sits. The bottom is the top darkened by ~10/255 per channel.
     static let bubbleTop = Color(hex: 0x4B6DA7)
-    static let bubbleBottom = Color(hex: 0x42639C)
+    static let bubbleBottomBrightness = -0.04
     /// Header, composer, and day pills: a dark tint over a blur, with a hairline border.
     static let chromeFill = Color(hex: 0x1B232D).opacity(0.85)
     static let chromeBorder = Color.white.opacity(0.11)

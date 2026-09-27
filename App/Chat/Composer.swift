@@ -2,9 +2,9 @@ import SwiftUI
 
 struct Composer: View {
     @Binding var text: String
+    var focus: FocusState<ChatFocus?>.Binding
     var onAttach: () -> Void
     var onSend: () -> Void
-    @FocusState private var isFocused: Bool
 
     private var canSend: Bool {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -23,7 +23,7 @@ struct Composer: View {
                 .font(.system(size: 13))
                 .foregroundStyle(.white)
                 .lineLimit(1...10)
-                .focused($isFocused)
+                .focused(focus, equals: .composer)
                 .onSubmit(onSend)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
@@ -31,20 +31,17 @@ struct Composer: View {
                 .chromeBackground(RoundedRectangle(cornerRadius: Metrics.chromeHeight / 2))
 
             circleButton(action: canSend ? onSend : {}) {
-                if canSend {
-                    Image(systemName: "paperplane.fill")
-                        .font(.system(size: 16))
-                        .foregroundStyle(Theme.accent)
-                } else {
-                    Image(systemName: "mic")
-                        .font(.system(size: 19))
-                        .foregroundStyle(.white)
-                }
+                // One symbol that morphs between mic and send, rather than two views that swap.
+                Image(systemName: canSend ? "paperplane.fill" : "mic")
+                    .font(.system(size: canSend ? 16 : 19))
+                    .foregroundStyle(canSend ? Theme.accent : .white)
+                    .contentTransition(.symbolEffect(.replace))
+                    .animation(.smooth(duration: 0.2), value: canSend)
             }
         }
         .padding(.horizontal, Metrics.sideMargin)
         .padding(.bottom, Metrics.composerBottom)
-        .onAppear { isFocused = true }
+        .onAppear { focus.wrappedValue = .composer }
     }
 
     private func circleButton(action: @escaping () -> Void, @ViewBuilder label: () -> some View) -> some View {
@@ -53,7 +50,7 @@ struct Composer: View {
                 .frame(width: Metrics.chromeHeight, height: Metrics.chromeHeight)
                 .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressFeedback)
         .chromeBackground(Circle())
     }
 }

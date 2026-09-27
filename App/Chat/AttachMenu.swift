@@ -76,7 +76,7 @@ private struct AttachMenuRow: View {
             .padding(.horizontal, 4)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressFeedback)
         .onHover { isHovered = $0 }
     }
 }

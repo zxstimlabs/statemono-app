@@ -1,3 +1,4 @@
+import StatemonoKit
 import SwiftUI
 
 struct MessageBubble: View {
@@ -5,6 +6,8 @@ struct MessageBubble: View {
     let position: BubblePosition
     /// Briefly lit up when search lands on this message.
     var isFlashed = false
+    var isLoadingPreview = false
+    var onReloadPreview: () -> Void = {}
     @Environment(\.searchTerms) private var searchTerms
 
     private var shape: BubbleShape {
@@ -20,6 +23,11 @@ struct MessageBubble: View {
             Spacer(minLength: 56)
             CappedWidth(max: message.preview == nil ? Metrics.textMaxWidth : Metrics.previewWidth) {
                 content
+            }
+            .overlay(alignment: .topTrailing) {
+                if message.link != nil {
+                    ReloadButton(isLoading: isLoadingPreview, action: onReloadPreview)
+                }
             }
             .padding(EdgeInsets(top: 7, leading: 10, bottom: 6, trailing: 10 + Metrics.tailWidth))
             .background { BubbleFill(shape: shape) }
@@ -37,7 +45,8 @@ struct MessageBubble: View {
         if let preview = message.preview {
             VStack(alignment: .leading, spacing: 0) {
                 messageText(highlighted(Linkifier.attributed(message.text), source: message.text))
-                LinkPreviewView(preview: preview, url: Linkifier.firstURL(in: message.text))
+                    .padding(.trailing, ReloadButton.reservedWidth)
+                LinkPreviewView(preview: preview, url: message.link, revision: message.previewRevision)
                     .padding(.top, 5)
                 TimeLabel(date: message.date)
                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -47,6 +56,7 @@ struct MessageBubble: View {
             // Telegram tucks the time into the last line when it fits. Reserve that space with invisible text;
             // if the last line is too full, the reserve wraps and the time drops onto its own line.
             messageText(highlighted(Linkifier.attributed(message.text), source: message.text) + TimeLabel.reserve(for: message.date))
+                .padding(.trailing, message.link == nil ? 0 : ReloadButton.reservedWidth)
                 .overlay(alignment: .bottomTrailing) {
                     TimeLabel(date: message.date)
                 }
@@ -65,21 +75,45 @@ struct MessageBubble: View {
     }
 }
 
-/// Fills the bubble with the window-pinned gradient.
+/// Fills the bubble with Telegram's window-pinned gradient, approximated per bubble: the lower a bubble sits in
+/// the window, the darker it is. The shade is set in `visualEffect`, which runs at render time. A GeometryReader
+/// here re-ran every bubble's body on every scroll frame and dropped a 200-message feed to ~20fps.
 private struct BubbleFill: View {
     let shape: BubbleShape
-    @Environment(\.chatViewportHeight) private var viewportHeight
 
     var body: some View {
-        GeometryReader { proxy in
-            let frame = proxy.frame(in: .named(ChatView.coordinateSpace))
-            let height = max(frame.height, 1)
-            shape.fill(LinearGradient(
-                colors: [Theme.bubbleTop, Theme.bubbleBottom],
-                startPoint: UnitPoint(x: 0.5, y: -frame.minY / height),
-                endPoint: UnitPoint(x: 0.5, y: (viewportHeight - frame.minY) / height)
-            ))
+        shape.fill(Theme.bubbleTop)
+            .visualEffect { content, proxy in
+                let height = max(proxy.bounds(of: .scrollView)?.height ?? 1, 1)
+                let position = min(max(proxy.frame(in: .scrollView).midY / height, 0), 1)
+                return content.brightness(Theme.bubbleBottomBrightness * position)
+            }
+    }
+}
+
+/// Fetches a link's preview again. It sits in the bubble's top-right corner, sized and colored like the time and
+/// ticks at the bottom right, and spins while a fetch is running, including the first one after sending.
+private struct ReloadButton: View {
+    static let size = CGSize(width: 14, height: 16)
+    /// Room the link text leaves on its right so the button never covers it.
+    static let reservedWidth = size.width + 4
+
+    let isLoading: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.white)
+                .symbolEffect(.rotate, options: .repeat(.continuous), isActive: isLoading)
+                .frame(width: Self.size.width, height: Self.size.height)
+                .contentShape(Rectangle())
         }
+        .buttonStyle(.pressFeedback)
+        .disabled(isLoading)
+        .help("Reload preview")
+        .accessibilityLabel("Reload preview")
     }
 }
 
@@ -114,25 +148,49 @@ struct TimeLabel: View {
 private struct LinkPreviewView: View {
     let preview: LinkPreview
     let url: URL?
+    /// Changes when the preview is reloaded, so the image view starts over and loads the image again.
+    let revision: Date?
+
+    /// Telegram's small thumbnail.
+    static let thumbnailSide: CGFloat = 54
+    /// A large image spans the preview's width, minus its insets (7 leading, 6 trailing).
+    static let largeImageWidth = Metrics.previewWidth - 13
     @Environment(\.openURL) private var openURL
     @Environment(\.searchTerms) private var searchTerms
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let siteName = preview.siteName {
-                Text(Highlighter.apply(searchTerms, to: siteName)).fontWeight(.medium)
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 0) {
+                    if let siteName = preview.siteName {
+                        Text(Highlighter.apply(searchTerms, to: siteName)).fontWeight(.medium)
+                    }
+                    if let title = preview.title {
+                        Text(Highlighter.apply(searchTerms, to: title)).fontWeight(.semibold)
+                    }
+                    if let summary = preview.summary {
+                        Text(Highlighter.apply(searchTerms, to: summary))
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                // Telegram's small thumbnail: 54pt in the top-right corner, for images that don't warrant full width.
+                if let image = preview.image, !image.isLarge {
+                    RemoteImage(image: image, size: CGSize(width: Self.thumbnailSide, height: Self.thumbnailSide))
+                        .id(revision)
+                        .frame(width: Self.thumbnailSide, height: Self.thumbnailSide)
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                        .padding(.top, 2)
+                }
             }
-            if let title = preview.title {
-                Text(Highlighter.apply(searchTerms, to: title)).fontWeight(.semibold)
-            }
-            if let summary = preview.summary {
-                Text(Highlighter.apply(searchTerms, to: summary))
-            }
-            if let image = preview.image {
+            if let image = preview.image, image.isLarge {
+                let aspect = min(max(image.aspectRatio, 0.8), 3)
                 Color.clear
-                    .aspectRatio(min(max(image.aspectRatio, 0.8), 3), contentMode: .fit)
+                    .aspectRatio(aspect, contentMode: .fit)
                     .frame(maxWidth: .infinity)
-                    .overlay { LocalImage(url: image.url) }
+                    .overlay {
+                        RemoteImage(image: image, size: CGSize(width: Self.largeImageWidth, height: Self.largeImageWidth / aspect))
+                            .id(revision)
+                    }
                     .clipShape(RoundedRectangle(cornerRadius: 5))
                     .padding(.top, 3)
             }
@@ -183,8 +241,20 @@ enum Linkifier {
         return result
     }
 
+    /// The first web link in `text`. A bare "example.com" comes back from the detector as http://; it's asked for
+    /// over https instead, which nearly every site serves and which App Transport Security requires.
     static func firstURL(in text: String) -> URL? {
-        detector.firstMatch(in: text, range: NSRange(text.startIndex..., in: text))?.url
+        let range = NSRange(text.startIndex..., in: text)
+        for match in detector.matches(in: text, range: range) {
+            guard let url = match.url, let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { continue }
+            let typed = (text as NSString).substring(with: match.range).lowercased()
+            if scheme == "http", !typed.hasPrefix("http"), var components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+                components.scheme = "https"
+                return components.url ?? url
+            }
+            return url
+        }
+        return nil
     }
 }
 

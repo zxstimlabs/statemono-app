@@ -2,12 +2,12 @@ import SwiftUI
 
 @main
 struct StatemonoApp: App {
-    @State private var store = ChatStore(messages: SampleMessages.make())
+    @State private var library = Library()
 
     var body: some Scene {
         WindowGroup {
-            ChatView()
-                .environment(store)
+            RootView()
+                .environment(library)
         }
         #if os(macOS)
         .windowStyle(.hiddenTitleBar)
