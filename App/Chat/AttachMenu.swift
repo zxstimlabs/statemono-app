@@ -5,16 +5,16 @@ enum AttachMenuItem: CaseIterable, Identifiable {
 
     var id: Self { self }
 
-    var title: LocalizedStringKey {
+    var title: String {
         switch self {
-        case .photoOrVideo: "Photo Or Video"
-        case .giftPremium: "Gift Premium"
-        case .wallet: "Wallet"
-        case .file: "File"
-        case .camera: "Camera"
-        case .audio: "Audio"
-        case .location: "Location"
-        case .article: "Article"
+        case .photoOrVideo: String(localized: "Photo Or Video")
+        case .giftPremium: String(localized: "Gift Premium")
+        case .wallet: String(localized: "Wallet")
+        case .file: String(localized: "File")
+        case .camera: String(localized: "Camera")
+        case .audio: String(localized: "Audio")
+        case .location: String(localized: "Location")
+        case .article: String(localized: "Article")
         }
     }
 
@@ -32,51 +32,20 @@ enum AttachMenuItem: CaseIterable, Identifiable {
     }
 }
 
-/// Telegram's attach popup: an opaque panel that opens over the paperclip button.
+/// Telegram's attach popup, a menu that opens over the paperclip button.
 struct AttachMenu: View {
     var onSelect: (AttachMenuItem) -> Void
+    @State private var hovered: AttachMenuItem?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        MenuPanel {
             ForEach(AttachMenuItem.allCases) { item in
-                AttachMenuRow(item: item) { onSelect(item) }
-            }
-        }
-        .padding(.vertical, 4)
-        .fixedSize()
-        .background(Theme.menuFill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .shadow(color: .black.opacity(0.3), radius: 16, y: 4)
-    }
-}
-
-private struct AttachMenuRow: View {
-    let item: AttachMenuItem
-    let action: () -> Void
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 9) {
-                Image(systemName: item.systemImage)
-                    .font(.system(size: 14))
-                    .frame(width: 20)
-                Text(item.title)
-                    .font(.system(size: 13, weight: .medium))
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(.white)
-            .padding(.leading, 10)
-            .padding(.trailing, 12)
-            .frame(height: 28)
-            .background {
-                if isHovered {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.white.opacity(0.08))
+                MenuRow(title: item.title, systemImage: item.systemImage, isHighlighted: hovered == item) { isHovered in
+                    if isHovered { hovered = item } else if hovered == item { hovered = nil }
+                } action: {
+                    onSelect(item)
                 }
             }
-            .padding(.horizontal, 4)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.pressFeedback)
-        .onHover { isHovered = $0 }
     }
 }

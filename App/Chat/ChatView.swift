@@ -17,7 +17,11 @@ struct ChatView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if os(macOS)
     @State private var scroller = FeedScroller()
+    /// The open context menu. On iOS, bubbles use the system's context menu instead.
+    @State private var messageMenu: MessageMenuState?
     #endif
+    /// A message waiting for the user to confirm deleting it.
+    @State private var pendingDelete: Message.ID?
 
     var body: some View {
         feed
@@ -54,6 +58,17 @@ struct ChatView: View {
             }
         }
         #if os(macOS)
+        .overlay {
+            if let menu = messageMenu {
+                MessageMenuOverlay(menu: menu) { item in
+                    closeMessageMenu()
+                    perform(item, on: menu.messageID)
+                } onClose: {
+                    closeMessageMenu()
+                }
+                .transition(.opacity)
+            }
+        }
         .onExitCommand {
             if showsAttachMenu {
                 setAttachMenu(shown: false)
@@ -73,11 +88,23 @@ struct ChatView: View {
             scroll(to: id.uuidString, anchor: .bottom)
         }
         #endif
+        // Telegram's confirmation for deleting a message in Saved Messages.
+        .alert("This action can't be undone", isPresented: isConfirmingDelete, presenting: pendingDelete) { id in
+            Button("Delete", role: .destructive) { store.delete(id) }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("Delete selected message?")
+        }
         .environment(\.searchTerms, search.isActive ? search.terms : [])
         .background(Theme.background)
         #if os(macOS)
         .background {
             TrafficLightsAligner(centerY: Metrics.headerTop + Metrics.chromeHeight / 2, width: $trafficLightsWidth)
+        }
+        .background {
+            WindowEventMonitor(events: [.rightMouseDown, .leftMouseDown, .keyDown, .scrollWheel], handler: handleWindowEvent) {
+                closeMessageMenu()
+            }
         }
         .ignoresSafeArea()
         .frame(minWidth: 380, minHeight: 320)
@@ -125,6 +152,21 @@ struct ChatView: View {
                                 isLoadingPreview: store.loadingPreviews.contains(message.id),
                                 onReloadPreview: { store.reloadPreview(for: message.id) }
                             )
+                            #if !os(macOS)
+                            .contextMenu {
+                                ForEach(MessageMenuItem.groups.indices, id: \.self) { index in
+                                    Section {
+                                        ForEach(MessageMenuItem.groups[index]) { item in
+                                            Button(role: item.isDestructive ? .destructive : nil) {
+                                                perform(item, on: message.id)
+                                            } label: {
+                                                Label(item.title, systemImage: item.systemImage)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            #endif
                         }
                     }
                     #if os(macOS)
@@ -165,6 +207,8 @@ struct ChatView: View {
     /// Critically damped springs (no bounce) for UI that appears on a click: interruptible, unlike fixed curves.
     private static let panelSpring = Animation.smooth(duration: 0.25)
     private static let menuSpring = Animation.smooth(duration: 0.2)
+    /// A context menu fades in and out over 0.2s, as in Telegram.
+    private static let menuFade = Animation.easeOut(duration: 0.2)
 
     private func openSearch() {
         oldestDate = try? store.database.oldestItemDate()
@@ -222,6 +266,55 @@ struct ChatView: View {
             showsAttachMenu = shown
         }
     }
+
+    /// Runs a context menu item on a message. Only Copy Text and Delete are built so far.
+    private func perform(_ item: MessageMenuItem, on id: Message.ID) {
+        guard let message = store.messages.first(where: { $0.id == id }) else { return }
+        switch item {
+        case .copyText: Pasteboard.copy(message.text)
+        case .delete: pendingDelete = id
+        case .reply, .translate, .edit, .pin, .forward, .select: break
+        }
+    }
+
+    private var isConfirmingDelete: Binding<Bool> {
+        Binding { pendingDelete != nil } set: { if !$0 { pendingDelete = nil } }
+    }
+
+    #if os(macOS)
+    /// Opens a message's context menu on a right-click, two-finger tap or Control-click anywhere on its row, beside the
+    /// bubble included, as TelegramSwift's `TableRowView` does. While the menu is open, events go to it instead.
+    private func handleWindowEvent(_ event: NSEvent, in view: NSView) -> Bool {
+        if let menu = messageMenu {
+            switch menu.handle(event) {
+            case .select(let item):
+                closeMessageMenu()
+                perform(item, on: menu.messageID)
+            case .close:
+                closeMessageMenu()
+            case nil:
+                break
+            }
+            // Left clicks go on to the menu's rows and the backdrop around it.
+            return event.type != .leftMouseDown
+        }
+        let isContextClick = event.type == .rightMouseDown
+            || (event.type == .leftMouseDown && event.modifierFlags.contains(.control))
+        guard isContextClick, !showsAttachMenu, let point = scroller.contentPoint(of: event),
+              let message = store.messages.first(where: { scroller.rowFrames[$0.id.uuidString]?.contains(point) == true })
+        else { return false }
+        let location = view.convert(event.locationInWindow, from: nil)
+        withAnimation(Self.menuFade) {
+            messageMenu = MessageMenuState(messageID: message.id, point: location)
+        }
+        return true
+    }
+
+    private func closeMessageMenu() {
+        guard messageMenu != nil else { return }
+        withAnimation(Self.menuFade) { messageMenu = nil }
+    }
+    #endif
 
     private func send() {
         guard !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }

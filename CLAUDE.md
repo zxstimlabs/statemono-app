@@ -11,10 +11,10 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 
 ## Status
 - The feed reads from the SQLite database (GRDB) in `Packages/StatemonoKit/Sources/StatemonoKit/Database/`. Messages, previews, and the image index survive relaunches.
-- Built so far: feed with Telegram-style bubbles and link previews, composer, attach menu (items are stubs), in-chat search over all history, send animation, paging, app icon.
+- Built so far: feed with Telegram-style bubbles and link previews, composer, attach menu (items are stubs), message context menu (Copy Text and Delete work), in-chat search over all history, send animation, paging, app icon.
 - Sending a link fetches its preview on the device (`Packages/StatemonoKit/Sources/StatemonoKit/LinkPreviews/`). X posts and ordinary websites are covered.
 - The iOS target compiles the same `App/` sources but its UI hasn't been tuned.
-- Stubs: header ⋯, paperclip menu items, mic, and the "Unlock" tag chip in search.
+- Stubs: header ⋯, paperclip menu items, mic, and the context menu's Reply, Translate, Edit, Pin, Forward and Select.
 
 ## Plan (build and test after each step)
 1. StatemonoKit: model, database, FTS search (with the đ fix), tests. **Done.**
@@ -98,6 +98,14 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
   - Leaving the field with an empty query closes the search. Clicking the feed doesn't take focus from a text field on macOS, so the feed's scroll content has a tap gesture that closes an empty search. A gesture on the `ScrollView` itself never receives the click.
 - Inline timestamps reserve their space with invisible text at the end of the message. That reserve must end in visible characters (`"\u{00A0}00"`), because trailing spaces don't count toward a line's width.
 
+### Menus
+- The attach menu and a message's context menu share `MenuPanel`, `MenuRow` and `MenuSeparator` (`Menu.swift`). The numbers come from TelegramSwift's `AppMenu`: 28pt rows, 13pt medium, an 18pt icon 15pt in, text at 42pt, 5pt separators, 4pt top and bottom. The 18pt corner radius comes from a screenshot of current Telegram; the July 2025 source says 10.
+- The context menu (`MessageMenu.swift`) opens on right-click or Control-click anywhere on a message's row, as TelegramSwift's `TableRowView` does, beside the bubble included. SwiftUI's `.contextMenu` on macOS is a native `NSMenu`, which looks nothing like Telegram's, and macOS 15 SwiftUI has no secondary-click gesture. Instead, one `WindowEventMonitor` in `ChatView` catches the click, and `FeedScroller.contentPoint(of:)` plus `rowFrames` find the row. Clicks on the header, composer or search panel don't count.
+- While the menu is open, the same monitor sends keys, scroll-wheel events and right-clicks to `MessageMenuState`; the overlay's backdrop catches left clicks outside. The monitor lives in `ChatView`, not the overlay, because the overlay stays in the window during its 0.2s fade-out and would keep swallowing events.
+- iOS uses the system `.contextMenu` with the same items.
+- Delete shows Telegram's alert ("This action can't be undone" / "Delete selected message?"), then `AppDatabase.deleteItem` writes the tombstone.
+- Screenshots are in the display's color profile, not sRGB. Saturated colors shift: Telegram's red #EF5B5B reads as #DE6560 in a screenshot. Dark neutrals barely move. Convert a saturated color, or check it in the harness, before putting it in `Theme`.
+
 ## Working on the app
 - After adding or removing files, run `xcodegen generate`. The `.xcodeproj` lists files explicitly.
 - Build both schemes after UI changes. `App/` is shared, so a Mac change can break the iOS build.
@@ -108,6 +116,7 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
   - Make the harness a regular, frontmost app. macOS throttles display links in windows that aren't in front.
   - For a synthetic click, queue the mouse-up (`NSApp.postEvent`) before sending the mouse-down. A text field tracks the mouse until the mouse-up arrives, so sending the two in order hangs.
   - Synthetic clicks can leave the harness window inactive, and then ⌘ shortcuts never arrive. Activate the window again before sending one.
+  - Events posted with `NSApp.postEvent` go through `WindowEventMonitor`, so post synthetic right-clicks and keys that way. Synthetic scroll-wheel events never reached the feed, posted or sent with `CGEvent.postToPid`.
   - StatemonoKit depends on GRDB, so make the harness a SwiftPM executable package that depends on `Packages/StatemonoKit` by path. Copy `App/Chat/*.swift` into its sources on each build, and seed a database through `AppDatabase`.
 - App icon: `Design/statemono-logo-icon.png` is the source. The iOS icon is a flattened, opaque, full-bleed 1024 image. The macOS icons put an 824pt body on a 1024 canvas with continuous corners of radius 185.4 and a soft shadow, at 16–1024px.
 

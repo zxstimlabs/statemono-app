@@ -62,6 +62,11 @@ final class ChatStore {
         }
     }
 
+    /// Deletes a message, leaving a tombstone. It leaves the feed when the database's observation reports the change.
+    func delete(_ id: Message.ID) {
+        try? database.deleteItem(id)
+    }
+
     /// Fetches the preview again, image included, replacing the current one when the new one arrives.
     func reloadPreview(for id: Message.ID) {
         guard let message = messages.first(where: { $0.id == id }), let link = message.link else { return }

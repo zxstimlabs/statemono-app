@@ -86,6 +86,23 @@ final class FeedScroller: NSObject {
         return true
     }
 
+    /// Where a mouse event landed in the feed's content space, where `rowFrames` are. Nil if it landed on something
+    /// over the feed instead, like the header, the composer or the search panel.
+    func contentPoint(of event: NSEvent) -> CGPoint? {
+        guard let scrollView, let documentView = scrollView.documentView, documentView.isFlipped, let contentAnchor,
+              let frameView = scrollView.window?.contentView?.superview,
+              frameView.hitTest(event.locationInWindow)?.isDescendant(of: scrollView) == true
+        else { return nil }
+        // The header and composer float over the ends of the feed, in its content insets.
+        let clip = scrollView.contentView
+        let inClip = clip.convert(event.locationInWindow, from: nil)
+        let insets = scrollView.contentInsets
+        guard inClip.y >= clip.bounds.minY + insets.top, inClip.y <= clip.bounds.maxY - insets.bottom else { return nil }
+        let point = documentView.convert(event.locationInWindow, from: nil)
+        let content = contentAnchor.convert(contentAnchor.bounds, to: documentView)
+        return CGPoint(x: point.x - content.minX, y: point.y - content.minY)
+    }
+
     // MARK: - Following growth
 
     fileprivate func attach(to scrollView: NSScrollView?, contentAnchor: NSView) {

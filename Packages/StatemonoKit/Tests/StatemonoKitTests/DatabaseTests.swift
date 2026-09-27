@@ -53,10 +53,30 @@ struct DatabaseTests {
         let item = try db.insertItem(text: "https://scriptc.dev/", link: URL(string: "https://scriptc.dev/"))
         try await db.savePreview(LinkPreview(siteName: "scriptc", title: "TypeScript-to-Native Compiler", summary: "Small, fast executables"), for: item.id)
         #expect(try await db.search("typescript native") == [item.id])
-        try await db.writer.write { db in
-            try db.execute(sql: "UPDATE item SET deletedAt = ? WHERE id = ?", arguments: [Date(), item.id])
-        }
+        try db.deleteItem(item.id)
         #expect(try await db.search("typescript") == [])
+    }
+
+    @Test func `deleting leaves a tombstone that drops out of the feed`() async throws {
+        let db = try makeDatabase()
+        let base = Date(timeIntervalSince1970: 1_000_000)
+        let kept = try db.insertItem(text: "kept", link: nil, date: base)
+        let deleted = try db.insertItem(text: "deleted", link: nil, date: base.addingTimeInterval(1))
+        try await db.writer.write { db in try db.execute(sql: "UPDATE item SET isDirty = 0") } // as if synced
+
+        let deletedAt = base.addingTimeInterval(60)
+        try db.deleteItem(deleted.id, date: deletedAt)
+        try db.deleteItem(deleted.id, date: deletedAt.addingTimeInterval(60)) // already deleted: unchanged
+
+        var page: FeedPage?
+        let observation = db.observeFeed(from: nil) { page = $0 }
+        defer { observation.cancel() }
+        #expect(page?.entries.map(\.item.id) == [kept.id])
+        let tombstone = try #require(try await db.writer.read { db in try Item.fetchOne(db, key: ["id": deleted.id]) })
+        #expect(tombstone.deletedAt == deletedAt)
+        #expect(tombstone.updatedAt == deletedAt)
+        #expect(tombstone.isDirty)
+        #expect(tombstone.text == "deleted")
     }
 
     @Test func `stores previews with their image record and reuses them for the same link`() async throws {

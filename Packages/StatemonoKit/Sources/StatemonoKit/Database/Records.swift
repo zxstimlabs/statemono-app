@@ -47,7 +47,9 @@ extension Item: FetchableRecord, MutablePersistableRecord {
         public static let id = Column(CodingKeys.id)
         public static let link = Column(CodingKeys.link)
         public static let createdAt = Column(CodingKeys.createdAt)
+        public static let updatedAt = Column(CodingKeys.updatedAt)
         public static let deletedAt = Column(CodingKeys.deletedAt)
+        public static let isDirty = Column(CodingKeys.isDirty)
         public static let previewFetchedAt = Column(CodingKeys.previewFetchedAt)
     }
 }

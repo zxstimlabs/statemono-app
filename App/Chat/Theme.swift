@@ -10,10 +10,15 @@ enum Theme {
     /// Header, composer, and day pills: a dark tint over a blur, with a hairline border.
     static let chromeFill = Color(hex: 0x1B232D).opacity(0.85)
     static let chromeBorder = Color.white.opacity(0.11)
-    static let menuFill = Color(hex: 0x1F242B)
+    /// Menus: TelegramSwift's night palette tints the blur with its background (#18222D) at 70%, and draws the hover
+    /// highlight and separators in its grayIcon (#B1C3D5) at 15% and 10%.
+    static let menuTint = Color(hex: 0x18222D).opacity(0.7)
+    static let menuHighlight = Color(hex: 0xB1C3D5).opacity(0.15)
+    static let menuSeparator = Color(hex: 0xB1C3D5).opacity(0.1)
+    /// Telegram's redUI. A screenshot shows it as #DE6560, in the display's color space rather than sRGB.
+    static let destructive = Color(hex: 0xEF5B5B)
     static let searchFieldFill = Color(hex: 0x4C678F).opacity(0.1)
     static let searchHighlight = Color.white.opacity(0.3)
-    static let tag = Color(hex: 0x5AAEFF)
     static let secondaryText = Color(hex: 0xC3D1E3)
     static let avatarTop = Color(hex: 0xACE1FB)
     static let avatarBottom = Color(hex: 0x74B4F6)
@@ -34,6 +39,7 @@ enum Metrics {
     static let bubbleTrailing: CGFloat = 11
     static let textMaxWidth: CGFloat = 400
     static let previewWidth: CGFloat = 282
+    static let menuRadius: CGFloat = 18
 }
 
 extension Color {

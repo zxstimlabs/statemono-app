@@ -177,6 +177,18 @@ public final class AppDatabase: Sendable {
         }
     }
 
+    /// Deletes an item as a user edit. The row stays as a tombstone, so the deletion can sync, and drops out of the feed
+    /// and search.
+    public func deleteItem(_ id: UUID, date: Date = .now) throws {
+        try writer.write { db in
+            _ = try Item.filter(Item.Columns.id == id && Item.Columns.deletedAt == nil).updateAll(db, [
+                Item.Columns.deletedAt.set(to: date),
+                Item.Columns.updatedAt.set(to: date),
+                Item.Columns.isDirty.set(to: true),
+            ])
+        }
+    }
+
     /// Stores a fetched preview on an item, and its image's record. A nil preview records that the page had nothing to
     /// show, so it isn't fetched again at every launch.
     public func savePreview(_ preview: LinkPreview?, for itemID: UUID) async throws {
