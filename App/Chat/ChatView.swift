@@ -8,6 +8,7 @@ struct ChatView: View {
     @State private var scrollPosition = ScrollPosition(edge: .bottom)
     @State private var viewportHeight: CGFloat = 0
     @State private var trafficLightsWidth: CGFloat = 0
+    @State private var showsAttachMenu = false
 
     var body: some View {
         ScrollView {
@@ -29,9 +30,27 @@ struct ChatView: View {
             ChatHeader(leadingInset: trafficLightsWidth > 0 ? trafficLightsWidth + 12 : Metrics.sideMargin)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            Composer(text: $draft, onSend: send)
+            Composer(text: $draft, onAttach: { setAttachMenu(shown: true) }, onSend: send)
                 .padding(.top, 4)
         }
+        .overlay {
+            if showsAttachMenu {
+                ZStack(alignment: .bottomLeading) {
+                    // Clicks anywhere outside the menu close it, including on the paperclip.
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { setAttachMenu(shown: false) }
+                    // Opens over the paperclip, offset from its bottom-leading corner as in Telegram.
+                    AttachMenu { _ in setAttachMenu(shown: false) }
+                        .padding(.leading, Metrics.sideMargin + 12.5)
+                        .padding(.bottom, Metrics.composerBottom + 8)
+                        .transition(.scale(scale: 0.9, anchor: .bottomLeading).combined(with: .opacity))
+                }
+            }
+        }
+        #if os(macOS)
+        .onExitCommand { setAttachMenu(shown: false) }
+        #endif
         .background(Theme.background)
         .coordinateSpace(.named(Self.coordinateSpace))
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { viewportHeight = $0 }
@@ -44,6 +63,12 @@ struct ChatView: View {
         .frame(minWidth: 380, minHeight: 320)
         #endif
         .preferredColorScheme(.dark)
+    }
+
+    private func setAttachMenu(shown: Bool) {
+        withAnimation(.easeOut(duration: 0.15)) {
+            showsAttachMenu = shown
+        }
     }
 
     private func send() {

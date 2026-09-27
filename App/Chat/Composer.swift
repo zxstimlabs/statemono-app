@@ -2,6 +2,7 @@ import SwiftUI
 
 struct Composer: View {
     @Binding var text: String
+    var onAttach: () -> Void
     var onSend: () -> Void
     @FocusState private var isFocused: Bool
 
@@ -11,34 +12,23 @@ struct Composer: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: Metrics.chromeSpacing) {
-            circleButton(action: {}) {
+            circleButton(action: onAttach) {
                 Image(systemName: "paperclip")
                     .font(.system(size: 19))
                     .foregroundStyle(.white)
             }
 
-            HStack(alignment: .bottom, spacing: 0) {
-                TextField("", text: $text, prompt: Text("Write a message...").foregroundStyle(Theme.secondaryText), axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white)
-                    .lineLimit(1...10)
-                    .focused($isFocused)
-                    .onSubmit(onSend)
-                    .padding(.leading, 12)
-                    .padding(.vertical, 10)
-                    .frame(minHeight: Metrics.chromeHeight)
-                ChromeIconButton(systemImage: "gift", size: 18, color: Theme.secondaryText) {}
-                    .frame(width: 36, height: Metrics.chromeHeight)
-                Button {} label: {
-                    StickerIcon()
-                        .foregroundStyle(Theme.secondaryText)
-                        .frame(width: 36, height: Metrics.chromeHeight)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-            .chromeBackground(RoundedRectangle(cornerRadius: Metrics.chromeHeight / 2))
+            TextField("", text: $text, prompt: Text("Write a message...").foregroundStyle(Theme.secondaryText), axis: .vertical)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .foregroundStyle(.white)
+                .lineLimit(1...10)
+                .focused($isFocused)
+                .onSubmit(onSend)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .frame(minHeight: Metrics.chromeHeight)
+                .chromeBackground(RoundedRectangle(cornerRadius: Metrics.chromeHeight / 2))
 
             circleButton(action: canSend ? onSend : {}) {
                 if canSend {

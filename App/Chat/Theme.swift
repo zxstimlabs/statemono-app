@@ -9,6 +9,7 @@ enum Theme {
     /// Header, composer, and day pills: a dark tint over a blur, with a hairline border.
     static let chromeFill = Color(hex: 0x1B232D).opacity(0.85)
     static let chromeBorder = Color.white.opacity(0.11)
+    static let menuFill = Color(hex: 0x1F242B)
     static let secondaryText = Color(hex: 0xC3D1E3)
     static let avatarTop = Color(hex: 0xACE1FB)
     static let avatarBottom = Color(hex: 0x74B4F6)

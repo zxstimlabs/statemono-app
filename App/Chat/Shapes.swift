@@ -58,23 +58,3 @@ struct ReadChecks: Shape {
         return path
     }
 }
-
-/// Telegram's sticker button: a tilted rounded square with a tongue-out face. SF Symbols has no match.
-struct StickerIcon: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .stroke(lineWidth: 1.4)
-            Circle().frame(width: 2.2, height: 2.2).offset(x: -2.6, y: -2.4)
-            Circle().frame(width: 2.2, height: 2.2).offset(x: 2.4, y: -2.9)
-            Path { path in
-                path.move(to: CGPoint(x: 4.2, y: 10.6))
-                path.addQuadCurve(to: CGPoint(x: 13, y: 9.2), control: CGPoint(x: 8.8, y: 12.6))
-            }
-            .stroke(style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
-            Capsule().frame(width: 2.6, height: 3.4).offset(x: 1.8, y: 3.4)
-        }
-        .frame(width: 17, height: 17)
-        .rotationEffect(.degrees(-13))
-    }
-}
