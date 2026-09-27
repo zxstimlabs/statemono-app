@@ -13,7 +13,7 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 - The feed reads from the SQLite database (GRDB) in `Packages/StatemonoKit/Sources/StatemonoKit/Database/`. Messages, previews, and the image index survive relaunches.
 - Built so far: feed with Telegram-style bubbles and link previews, composer, attach menu (items are stubs), message context menu (Copy Text and Delete work), in-chat search over all history, send animation, paging, app icon.
 - Sending a link fetches its preview on the device (`Packages/StatemonoKit/Sources/StatemonoKit/LinkPreviews/`). X posts and ordinary websites are covered.
-- The iOS target compiles the same `App/` sources but its UI hasn't been tuned.
+- The iOS target compiles the same `App/` sources but its UI hasn't been tuned. Its text follows the system Text Size (see UI reference); bubble widths are still the Mac's.
 - Stubs: header ⋯, paperclip menu items, mic, and the context menu's Reply, Translate, Edit, Pin, Forward and Select.
 
 ## Plan (build and test after each step)
@@ -25,6 +25,8 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 
 ## UI reference
 - The target is Telegram for macOS, night theme. Colors and sizes in `App/Chat/Theme.swift` (`Theme`, `Metrics`) were measured from 2x screenshots, so measure new screens the same way rather than guessing.
+- Text sizes come from `ChatTextSize` (`Theme.swift`, read through the environment). The Mac keeps its measured 13/12/11/12pt (message, preview, time, day pill). iOS copies Telegram-iOS's "Use System Text Size": the system body size snaps to Telegram's steps (14, 15, 16, 17, 19, 23, 26; 17 by default), messages and the composer use it, previews 14/17 of it, times 11/17, day pills 13/17.
+- Bubble content always gets the height it asks for (`CappedWidth` proposes a nil height). Given a fixed height, a VStack splits it among flexible children, and at large text sizes a preview's text lost lines to its image.
 - For behavior, read TelegramSwift (github.com/overtake/TelegramSwift) for macOS and Telegram-iOS for iOS. TelegramSwift is GPL-2.0 and built on its own AppKit table (TGUIKit), so port the mechanism, not the code.
 
 ## Known gotchas
