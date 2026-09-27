@@ -11,10 +11,11 @@ settings:
     # Single source of truth for IDs. Later: share extension $(APP_BUNDLE_ID).share,
     # App Group group.$(APP_BUNDLE_ID), iCloud container iCloud.$(APP_BUNDLE_ID).
     APP_BUNDLE_ID: com.statemono
-    DEVELOPMENT_TEAM: ""
+    # Pyhash LLC, the paid team. The free personal team can't use TestFlight or App Groups.
+    DEVELOPMENT_TEAM: 8G6DC3A5B8
     SWIFT_VERSION: "6.0"
     MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    CURRENT_PROJECT_VERSION: "2"
 
 packages:
   StatemonoKit:
@@ -36,6 +37,8 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: Statemono
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        # The app only uses standard HTTPS, which is exempt, so App Store Connect skips the export compliance question.
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
     scheme: {}
 
   Statemono-macOS:

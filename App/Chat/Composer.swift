@@ -5,6 +5,7 @@ struct Composer: View {
     var focus: FocusState<ChatFocus?>.Binding
     var onAttach: () -> Void
     var onSend: () -> Void
+    @Environment(\.chatTextSize) private var textSize
 
     private var canSend: Bool {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -20,7 +21,7 @@ struct Composer: View {
 
             TextField("", text: $text, prompt: Text("Write a message...").foregroundStyle(Theme.secondaryText), axis: .vertical)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .font(.system(size: textSize.message))
                 .foregroundStyle(.white)
                 .lineLimit(1...10)
                 .focused(focus, equals: .composer)

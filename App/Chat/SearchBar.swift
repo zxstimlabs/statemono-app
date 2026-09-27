@@ -7,6 +7,7 @@ struct SearchField: View {
     var focus: FocusState<ChatFocus?>.Binding
     var onOpen: () -> Void
     var onClose: () -> Void
+    @Environment(\.chatTextSize) private var textSize
 
     var body: some View {
         HStack(spacing: 8) {
@@ -15,7 +16,7 @@ struct SearchField: View {
                 .foregroundStyle(Theme.secondaryText)
             TextField("", text: $search.query, prompt: Text("Search").foregroundStyle(Theme.secondaryText))
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .font(.system(size: textSize.message))
                 .foregroundStyle(.white)
                 .focused(focus, equals: .search)
                 .onSubmit { search.showOlder() }
@@ -67,11 +68,12 @@ struct SearchPanel: View {
 
     @State private var showsCalendar = false
     @State private var calendarDate = Date.now
+    @Environment(\.chatTextSize) private var textSize
 
     var body: some View {
         HStack(spacing: 6) {
             Text(counter)
-                .font(.system(size: 12))
+                .font(.system(size: textSize.preview))
                 .monospacedDigit()
                 .foregroundStyle(Theme.secondaryText)
                 .lineLimit(1)

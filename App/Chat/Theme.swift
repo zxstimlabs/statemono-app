@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 /// Telegram's night theme, measured from a 2x screenshot of Saved Messages on macOS.
 enum Theme {
@@ -40,6 +43,46 @@ enum Metrics {
     static let textMaxWidth: CGFloat = 400
     static let previewWidth: CGFloat = 282
     static let menuRadius: CGFloat = 18
+}
+
+/// Text sizes in the chat. The Mac keeps the sizes measured from Telegram for macOS. On iOS they follow Telegram-iOS
+/// (`ChatPresentationData`, `ChatMessageDateAndStatusNode`, `ChatMessageDateHeader`): the system Text Size picks a
+/// base size, 17pt by default, and the rest are fractions of it.
+struct ChatTextSize: Equatable {
+    /// Messages, the composer, and the search field.
+    var message: CGFloat = 13
+    /// Link preview text and the search result counter.
+    var preview: CGFloat = 12
+    /// A bubble's time and read checks.
+    var time: CGFloat = 11
+    /// Day separators.
+    var day: CGFloat = 12
+
+    static let mac = ChatTextSize()
+}
+
+extension ChatTextSize {
+    /// Telegram-iOS's sizes for a base size.
+    init(base: CGFloat) {
+        message = base
+        preview = floor(base * 14 / 17)
+        time = floor(base * 11 / 17)
+        day = min(18, floor(base * 13 / 17))
+    }
+
+    #if os(iOS)
+    /// Telegram-iOS's "Use System Text Size": the system's body size, snapped to the nearest of Telegram's sizes.
+    init(_ dynamicTypeSize: DynamicTypeSize) {
+        let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
+        let body = UIFont.preferredFont(forTextStyle: .body, compatibleWith: traits).pointSize
+        let steps: [CGFloat] = [14, 15, 16, 17, 19, 23, 26]
+        self.init(base: steps.min { abs($0 - body) < abs($1 - body) } ?? 17)
+    }
+    #endif
+}
+
+extension EnvironmentValues {
+    @Entry var chatTextSize = ChatTextSize.mac
 }
 
 extension Color {

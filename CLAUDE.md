@@ -121,5 +121,9 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 - App icon: `Design/statemono-logo-icon.png` is the source. The iOS icon is a flattened, opaque, full-bleed 1024 image. The macOS icons put an 824pt body on a 1024 canvas with continuous corners of radius 185.4 and a soft shadow, at 16–1024px.
 
 ## Config
-- IDs come from `APP_BUNDLE_ID` in project.yml (`com.statemono`). `DEVELOPMENT_TEAM` is still empty, and the App Group (step 4) needs it.
+- IDs come from `APP_BUNDLE_ID` in project.yml (`com.statemono`). `DEVELOPMENT_TEAM` is Pyhash LLC's paid team (`8G6DC3A5B8`); the free personal team can't use TestFlight or App Groups.
+- TestFlight (iOS): every upload needs a higher `CURRENT_PROJECT_VERSION` in project.yml.
+  - Archive unsigned: `xcodebuild archive -scheme Statemono-iOS -destination 'generic/platform=iOS' -archivePath <path> CODE_SIGNING_ALLOWED=NO`. A signed archive fails because the team has no registered devices, and development profiles need one.
+  - Then `xcodebuild -exportArchive -allowProvisioningUpdates` with export options `method app-store-connect`, `destination upload`, `signingStyle automatic`, `teamID 8G6DC3A5B8`, `manageAppVersionAndBuildNumber false`. The export signs for the App Store and uploads with the Xcode account.
+  - The App Store Connect app has iOS and macOS. A Mac build needs the App Sandbox (plus `com.apple.security.network.client`) and real signing first; the sandboxed app keeps its data in its container, apart from today's `~/Library/Application Support/com.statemono`.
 - Deployment targets: iOS 18 / macOS 15. Swift 6 language mode.

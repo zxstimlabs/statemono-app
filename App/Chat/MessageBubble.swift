@@ -9,6 +9,7 @@ struct MessageBubble: View {
     var isLoadingPreview = false
     var onReloadPreview: () -> Void = {}
     @Environment(\.searchTerms) private var searchTerms
+    @Environment(\.chatTextSize) private var textSize
 
     private var shape: BubbleShape {
         BubbleShape(
@@ -55,7 +56,7 @@ struct MessageBubble: View {
         } else {
             // Telegram tucks the time into the last line when it fits. Reserve that space with invisible text;
             // if the last line is too full, the reserve wraps and the time drops onto its own line.
-            messageText(highlighted(Linkifier.attributed(message.text), source: message.text) + TimeLabel.reserve(for: message.date))
+            messageText(highlighted(Linkifier.attributed(message.text), source: message.text) + TimeLabel.reserve(for: message.date, size: textSize.time))
                 .padding(.trailing, message.link == nil ? 0 : ReloadButton.reservedWidth)
                 .overlay(alignment: .bottomTrailing) {
                     TimeLabel(date: message.date)
@@ -69,7 +70,7 @@ struct MessageBubble: View {
 
     private func messageText(_ text: AttributedString) -> some View {
         Text(text)
-            .font(.system(size: 13))
+            .font(.system(size: textSize.message))
             .foregroundStyle(.white)
             .tint(.white)
     }
@@ -119,28 +120,31 @@ private struct ReloadButton: View {
 
 struct TimeLabel: View {
     let date: Date
+    @Environment(\.chatTextSize) private var textSize
 
     static let format = Date.FormatStyle.dateTime.hour().minute()
 
     /// Invisible text as wide as a `TimeLabel` plus a small gap. The leading plain space is where it may wrap.
     /// It ends in "00" rather than spaces because trailing spaces don't count toward a line's width;
-    /// NBSP + "00" at 11pt is 17.1pt, just over the 4pt gap + 12.5pt checks.
-    static func reserve(for date: Date) -> AttributedString {
+    /// NBSP + "00" at 11pt is 17.1pt, just over the 4pt gap + 12.5pt checks. Both scale with `size`.
+    static func reserve(for date: Date, size: CGFloat) -> AttributedString {
         var reserve = AttributedString(" \u{00A0}" + date.formatted(format) + "\u{00A0}00")
-        reserve.swiftUI.font = .system(size: 11)
+        reserve.swiftUI.font = .system(size: size)
         reserve.swiftUI.foregroundColor = .clear
         return reserve
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
+        // The checks were measured beside 11pt text; Telegram-iOS sizes them with the time.
+        let scale = textSize.time / 11
+        HStack(alignment: .firstTextBaseline, spacing: 4 * scale) {
             Text(date, format: Self.format)
             ReadChecks()
                 .stroke(style: StrokeStyle(lineWidth: 1.25, lineCap: .round, lineJoin: .round))
-                .frame(width: 12.5, height: 7.5)
+                .frame(width: 12.5 * scale, height: 7.5 * scale)
                 .alignmentGuide(.firstTextBaseline) { $0[.bottom] }
         }
-        .font(.system(size: 11))
+        .font(.system(size: textSize.time))
         .foregroundStyle(.white)
     }
 }
@@ -157,6 +161,7 @@ private struct LinkPreviewView: View {
     static let largeImageWidth = Metrics.previewWidth - 13
     @Environment(\.openURL) private var openURL
     @Environment(\.searchTerms) private var searchTerms
+    @Environment(\.chatTextSize) private var textSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -195,7 +200,7 @@ private struct LinkPreviewView: View {
                     .padding(.top, 3)
             }
         }
-        .font(.system(size: 12))
+        .font(.system(size: textSize.preview))
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(EdgeInsets(top: 3, leading: 7, bottom: 4.5, trailing: 6))
@@ -213,17 +218,19 @@ private struct LinkPreviewView: View {
     }
 }
 
-/// Offers its content at most `max` points of width but, unlike `.frame(maxWidth:)`, still hugs short content.
+/// Offers its content at most `max` points of width but, unlike `.frame(maxWidth:)`, still hugs short content. The
+/// content always gets the height it asks for: a VStack given a fixed height shares it among its flexible children, so
+/// a preview's text could lose lines to its image once the text is large.
 private struct CappedWidth: Layout {
     var max: CGFloat
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let width = Swift.min(proposal.width ?? max, max)
-        return subviews.first?.sizeThatFits(ProposedViewSize(width: width, height: proposal.height)) ?? .zero
+        return subviews.first?.sizeThatFits(ProposedViewSize(width: width, height: nil)) ?? .zero
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        subviews.first?.place(at: bounds.origin, proposal: ProposedViewSize(bounds.size))
+        subviews.first?.place(at: bounds.origin, proposal: ProposedViewSize(width: bounds.width, height: nil))
     }
 }
 

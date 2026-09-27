@@ -15,6 +15,9 @@ struct ChatView: View {
     @State private var scrollsToNewMessage = false
     #endif
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    #if os(iOS)
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    #endif
     #if os(macOS)
     @State private var scroller = FeedScroller()
     /// The open context menu. On iOS, bubbles use the system's context menu instead.
@@ -96,6 +99,9 @@ struct ChatView: View {
             Text("Delete selected message?")
         }
         .environment(\.searchTerms, search.isActive ? search.terms : [])
+        #if os(iOS)
+        .environment(\.chatTextSize, ChatTextSize(dynamicTypeSize))
+        #endif
         .background(Theme.background)
         #if os(macOS)
         .background {
@@ -345,6 +351,7 @@ private struct ScrollRequest: Equatable {
 
 private struct DaySeparator: View {
     let date: Date
+    @Environment(\.chatTextSize) private var textSize
 
     private var label: String {
         let calendar = Calendar.current
@@ -358,7 +365,7 @@ private struct DaySeparator: View {
 
     var body: some View {
         Text(label)
-            .font(.system(size: 12, weight: .medium))
+            .font(.system(size: textSize.day, weight: .medium))
             .foregroundStyle(.white)
             .padding(.horizontal, 9)
             .padding(.vertical, 3)
