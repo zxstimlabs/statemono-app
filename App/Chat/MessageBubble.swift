@@ -3,6 +3,17 @@ import SwiftUI
 struct MessageBubble: View {
     let message: Message
     let position: BubblePosition
+    /// Briefly lit up when search lands on this message.
+    var isFlashed = false
+    @Environment(\.searchTerms) private var searchTerms
+
+    private var shape: BubbleShape {
+        BubbleShape(
+            topTrailingRadius: position.isFirstInGroup ? Metrics.bubbleRadius : Metrics.groupedRadius,
+            bottomTrailingRadius: Metrics.groupedRadius,
+            hasTail: position.isLastInGroup
+        )
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -11,12 +22,11 @@ struct MessageBubble: View {
                 content
             }
             .padding(EdgeInsets(top: 7, leading: 10, bottom: 6, trailing: 10 + Metrics.tailWidth))
-            .background {
-                BubbleFill(shape: BubbleShape(
-                    topTrailingRadius: position.isFirstInGroup ? Metrics.bubbleRadius : Metrics.groupedRadius,
-                    bottomTrailingRadius: Metrics.groupedRadius,
-                    hasTail: position.isLastInGroup
-                ))
+            .background { BubbleFill(shape: shape) }
+            .overlay {
+                if isFlashed {
+                    shape.fill(.white.opacity(0.18)).transition(.opacity)
+                }
             }
         }
         .padding(.trailing, Metrics.bubbleTrailing)
@@ -26,7 +36,7 @@ struct MessageBubble: View {
     @ViewBuilder private var content: some View {
         if let preview = message.preview {
             VStack(alignment: .leading, spacing: 0) {
-                messageText(Linkifier.attributed(message.text))
+                messageText(highlighted(Linkifier.attributed(message.text), source: message.text))
                 LinkPreviewView(preview: preview, url: Linkifier.firstURL(in: message.text))
                     .padding(.top, 5)
                 TimeLabel(date: message.date)
@@ -36,11 +46,15 @@ struct MessageBubble: View {
         } else {
             // Telegram tucks the time into the last line when it fits. Reserve that space with invisible text;
             // if the last line is too full, the reserve wraps and the time drops onto its own line.
-            messageText(Linkifier.attributed(message.text) + TimeLabel.reserve(for: message.date))
+            messageText(highlighted(Linkifier.attributed(message.text), source: message.text) + TimeLabel.reserve(for: message.date))
                 .overlay(alignment: .bottomTrailing) {
                     TimeLabel(date: message.date)
                 }
         }
+    }
+
+    private func highlighted(_ text: AttributedString, source: String) -> AttributedString {
+        Highlighter.apply(searchTerms, to: text, source: source)
     }
 
     private func messageText(_ text: AttributedString) -> some View {
@@ -75,8 +89,10 @@ struct TimeLabel: View {
     static let format = Date.FormatStyle.dateTime.hour().minute()
 
     /// Invisible text as wide as a `TimeLabel` plus a small gap. The leading plain space is where it may wrap.
+    /// It ends in "00" rather than spaces because trailing spaces don't count toward a line's width;
+    /// NBSP + "00" at 11pt is 17.1pt, just over the 4pt gap + 12.5pt checks.
     static func reserve(for date: Date) -> AttributedString {
-        var reserve = AttributedString(" \u{00A0}" + date.formatted(format) + String(repeating: "\u{00A0}", count: 6))
+        var reserve = AttributedString(" \u{00A0}" + date.formatted(format) + "\u{00A0}00")
         reserve.swiftUI.font = .system(size: 11)
         reserve.swiftUI.foregroundColor = .clear
         return reserve
@@ -99,17 +115,18 @@ private struct LinkPreviewView: View {
     let preview: LinkPreview
     let url: URL?
     @Environment(\.openURL) private var openURL
+    @Environment(\.searchTerms) private var searchTerms
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let siteName = preview.siteName {
-                Text(siteName).fontWeight(.medium)
+                Text(Highlighter.apply(searchTerms, to: siteName)).fontWeight(.medium)
             }
             if let title = preview.title {
-                Text(title).fontWeight(.semibold)
+                Text(Highlighter.apply(searchTerms, to: title)).fontWeight(.semibold)
             }
             if let summary = preview.summary {
-                Text(summary)
+                Text(Highlighter.apply(searchTerms, to: summary))
             }
             if let image = preview.image {
                 Color.clear
@@ -168,5 +185,22 @@ enum Linkifier {
 
     static func firstURL(in text: String) -> URL? {
         detector.firstMatch(in: text, range: NSRange(text.startIndex..., in: text))?.url
+    }
+}
+
+/// Marks search matches in text. `source` must be the plain string `text` was built from.
+enum Highlighter {
+    static func apply(_ terms: [String], to text: String) -> AttributedString {
+        apply(terms, to: AttributedString(text), source: text)
+    }
+
+    static func apply(_ terms: [String], to text: AttributedString, source: String) -> AttributedString {
+        guard !terms.isEmpty else { return text }
+        var text = text
+        for range in SearchText.ranges(of: terms, in: source) {
+            guard let range = Range(range, in: text) else { continue }
+            text[range].swiftUI.backgroundColor = Theme.searchHighlight
+        }
+        return text
     }
 }

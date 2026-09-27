@@ -3,6 +3,7 @@ import SwiftUI
 struct ChatHeader: View {
     /// Room on the leading side for the window's traffic lights.
     var leadingInset: CGFloat
+    var onSearch: () -> Void
 
     var body: some View {
         HStack(spacing: Metrics.chromeSpacing) {
@@ -24,7 +25,8 @@ struct ChatHeader: View {
             #endif
 
             HStack(spacing: 0) {
-                ChromeIconButton(systemImage: "magnifyingglass", size: 17) {}
+                ChromeIconButton(systemImage: "magnifyingglass", size: 17, action: onSearch)
+                    .keyboardShortcut("f", modifiers: .command)
                 ChromeIconButton(systemImage: "ellipsis", size: 15, weight: .bold) {}
             }
             .frame(width: 78, height: Metrics.chromeHeight)
