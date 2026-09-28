@@ -132,11 +132,14 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
   - StatemonoKit depends on GRDB, so make the harness a SwiftPM executable package that depends on `Packages/StatemonoKit` by path. Copy `App/Chat/*.swift` into its sources on each build, and seed a database through `AppDatabase`.
 - For iOS, use the simulator. `xcrun simctl io <device> screenshot` works without Screen Recording permission. To tap and type, make a scratch xcodegen project with an app target over `App/` (its own bundle ID) and a UI-test target. `XCUIScreen.main.screenshot()` saves frames, and `TEST_RUNNER_<NAME>` passes environment variables to the tests.
   - `simctl install` can hang on a simulator's first boot. Shut it down and boot it again.
-- App icon: `Design/statemono-logo-icon.png` is the source. The iOS icon is a flattened, opaque, full-bleed 1024 image. The macOS icons put an 824pt body on a 1024 canvas with continuous corners of radius 185.4 and a soft shadow, at 16–1024px.
+- App icon: `App/AppIcon.icon`, made by the owner in Icon Composer, serves both apps. It has a dark gradient fill and one SVG layer, the disc with the asterisk. Edit it in Icon Composer (Xcode › Open Developer Tool); `Design/statemono-logo-icon.png` is the original flat artwork.
+  - Xcode compiles it into `Assets.car`: the layered icon for macOS/iOS 26+, plus flat images for older systems (the Mac's include 1024px, which App Store Connect requires; the iPhone's include dark and tinted).
+  - There's no `AppIcon.appiconset` any more. With a `.icon` of the same name, Xcode ignores the set on every OS version.
+  - Old-style Mac icons (artwork on a transparent canvas with a shadow) show on a grey tile on macOS 26+. The system only draws an icon at full size when it fills its rounded-square shape.
 
 ## Config
 - IDs come from `APP_BUNDLE_ID` in project.yml (`com.statemono`). `DEVELOPMENT_TEAM` is Pyhash LLC's paid team (`8G6DC3A5B8`); the free personal team can't use TestFlight or App Groups.
-- TestFlight: both apps ship with the same version and build number (0.1.1 (3) went out for both). Every upload needs a higher `CURRENT_PROJECT_VERSION` in project.yml. The App Store Connect app has iOS and macOS.
+- TestFlight: both apps ship with the same version and build number. Every upload needs a higher `CURRENT_PROJECT_VERSION` in project.yml. The App Store Connect app has iOS and macOS.
   - iOS: archive unsigned: `xcodebuild archive -scheme Statemono-iOS -destination 'generic/platform=iOS' -archivePath <path> CODE_SIGNING_ALLOWED=NO`. A signed archive fails because the team has no registered devices, and development profiles need one.
   - macOS: archive signed: `xcodebuild archive -scheme Statemono-macOS -destination 'generic/platform=macOS' -archivePath <path> -allowProvisioningUpdates`. It signs with the team's Apple Development certificate. Don't archive it unsigned: the entitlements (sandbox, network) are part of the signature.
   - Then, for either, `xcodebuild -exportArchive -allowProvisioningUpdates` with export options `method app-store-connect`, `destination upload`, `signingStyle automatic`, `teamID 8G6DC3A5B8`, `manageAppVersionAndBuildNumber false`. The export signs for the App Store and uploads with the Xcode account (for the Mac, as a signed .pkg).
