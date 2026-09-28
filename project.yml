@@ -14,8 +14,8 @@ settings:
     # Pyhash LLC, the paid team. The free personal team can't use TestFlight or App Groups.
     DEVELOPMENT_TEAM: 8G6DC3A5B8
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "2"
+    MARKETING_VERSION: "0.1.1"
+    CURRENT_PROJECT_VERSION: "3"
 
 packages:
   StatemonoKit:
@@ -47,12 +47,21 @@ targets:
     sources: [App]
     dependencies:
       - package: StatemonoKit
+    # The Mac App Store and TestFlight only take sandboxed apps. Link previews need outgoing connections.
+    # Sandboxed, the app's files live in ~/Library/Containers/$(APP_BUNDLE_ID).
+    entitlements:
+      path: Config/Statemono-macOS.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
     settings:
       base:
         PRODUCT_NAME: Statemono
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Statemono
-        # "Sign to Run Locally" until DEVELOPMENT_TEAM is set.
-        CODE_SIGN_IDENTITY: "-"
+        # App Store Connect rejects Mac builds without a category.
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        # Standard HTTPS only, as on iOS, so there's no export compliance question.
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
     scheme: {}

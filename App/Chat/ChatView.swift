@@ -17,6 +17,8 @@ struct ChatView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if os(iOS)
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    /// Whether the software keyboard is up. The button that puts it away rides on top of it.
+    @State private var isKeyboardShown = false
     #endif
     #if os(macOS)
     @State private var scroller = FeedScroller()
@@ -32,8 +34,23 @@ struct ChatView: View {
             ChatHeader(leadingInset: headerLeadingInset, search: search, focus: $focus, onOpenSearch: openSearch, onCloseSearch: closeSearch)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            Composer(text: $draft, focus: $focus, onAttach: { setAttachMenu(shown: true) }, onSend: send)
-                .padding(.top, 4)
+            VStack(spacing: 0) {
+                Composer(text: $draft, focus: $focus, onAttach: { setAttachMenu(shown: true) }, onSend: send)
+                    .padding(.top, 4)
+                #if os(iOS)
+                // Revealed by a growing clip, so it rises out of the keyboard's top edge.
+                HideKeyboardButton { focus = nil }
+                    .frame(height: isKeyboardShown ? nil : 0, alignment: .bottom)
+                    .clipped()
+                    .allowsHitTesting(isKeyboardShown)
+                    .accessibilityHidden(!isKeyboardShown)
+                #endif
+            }
+            #if os(iOS)
+            // The keyboard moves this inset as one piece. Without the group, the row under the composer skipped
+            // the keyboard's animation, jumped to its final spot, and showed over the feed while the composer rose.
+            .geometryGroup()
+            #endif
         }
         // Drops out of the header's search field and floats over the feed, instead of insetting it.
         .overlay(alignment: .top) {
@@ -101,8 +118,15 @@ struct ChatView: View {
         .environment(\.searchTerms, search.isActive ? search.terms : [])
         #if os(iOS)
         .environment(\.chatTextSize, ChatTextSize(dynamicTypeSize))
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
+            withAnimation(.keyboard(note)) { isKeyboardShown = true }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
+            withAnimation(.keyboard(note)) { isKeyboardShown = false }
+        }
         #endif
-        .background(Theme.background)
+        // Also under the keyboard, which shows the app behind its rounded top corners.
+        .background { Theme.background.ignoresSafeArea() }
         #if os(macOS)
         .background {
             TrafficLightsAligner(centerY: Metrics.headerTop + Metrics.chromeHeight / 2, width: $trafficLightsWidth)
@@ -198,6 +222,10 @@ struct ChatView: View {
         // before `send()` can scroll to it smoothly.
         .defaultScrollAnchor(.bottom, for: .initialOffset)
         .defaultScrollAnchor(.bottom, for: .alignment)
+        #if os(iOS)
+        // As in Telegram-iOS, a tap anywhere in the feed puts the keyboard away: beside a bubble, on one, or above them.
+        .simultaneousGesture(TapGesture().onEnded { focus = nil }, isEnabled: focus != nil)
+        #endif
     }
 
     /// Header content starts after the traffic lights, which are hidden in full screen.
@@ -378,3 +406,13 @@ extension EnvironmentValues {
     /// Folded search terms to highlight in bubbles; empty when search is closed.
     @Entry var searchTerms: [String] = []
 }
+
+#if os(iOS)
+private extension Animation {
+    /// Close to the keyboard's own motion: the duration it reports, with no bounce.
+    static func keyboard(_ note: Notification) -> Animation {
+        let duration = note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0.25
+        return .smooth(duration: duration)
+    }
+}
+#endif

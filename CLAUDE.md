@@ -13,7 +13,7 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 - The feed reads from the SQLite database (GRDB) in `Packages/StatemonoKit/Sources/StatemonoKit/Database/`. Messages, previews, and the image index survive relaunches.
 - Built so far: feed with Telegram-style bubbles and link previews, composer, attach menu (items are stubs), message context menu (Copy Text and Delete work), in-chat search over all history, send animation, paging, app icon.
 - Sending a link fetches its preview on the device (`Packages/StatemonoKit/Sources/StatemonoKit/LinkPreviews/`). X posts and ordinary websites are covered.
-- The iOS target compiles the same `App/` sources but its UI hasn't been tuned. Its text follows the system Text Size (see UI reference); bubble widths are still the Mac's.
+- The iOS target compiles the same `App/` sources but its UI is only partly tuned. Its text follows the system Text Size (see UI reference) and its keyboard behaves like Telegram-iOS's (see iOS keyboard); bubble widths are still the Mac's.
 - Stubs: header ⋯, paperclip menu items, mic, and the context menu's Reply, Translate, Edit, Pin, Forward and Select.
 
 ## Plan (build and test after each step)
@@ -48,7 +48,7 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
   - Launch loads the newest 50.
   - Reaching the top calls `loadOlder()` and moves the start back 50. `FeedScroller.willPrepend()` shifts the scroll position by the added height so nothing moves on screen.
   - Jumping to an older search result or date moves the start back to just before it.
-- The database is at Application Support/<bundle id>/statemono.sqlite, a WAL `DatabasePool`. It moves into the App Group with the share extension (step 4). Opening it registers the tokenizer on every connection (`AppDatabase.configuration`).
+- The database is at Application Support/<bundle id>/statemono.sqlite, a WAL `DatabasePool`. On the Mac, Application Support is inside the sandbox container (see Config). It moves into the App Group with the share extension (step 4). Opening it registers the tokenizer on every connection (`AppDatabase.configuration`).
 - If the database can't be opened (a damaged file, or a failed migration), the app doesn't crash. `Library` (`App/Chat/DatabaseErrorView.swift`) shows the error and offers:
   - Try Again.
   - Start with a New Database…, after a confirmation. `AppDatabase.moveAside` renames the file and its WAL and SHM files to `statemono-unreadable-<local date>.sqlite` in the same folder, never deleting them, then opens a new database.
@@ -81,7 +81,7 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
   - Off screen, a view lets go of its decoded image.
 - Measured: after a relaunch, images come from disk with no network request. Scrolling past 120 large images stayed bounded (+52MB footprint at the end).
 - Each link bubble has a reload button in its top-right corner, sized like the time and ticks. It re-fetches the preview, deletes the cached image from memory and disk, and spins while any fetch for that message is running.
-- Bare domains ("example.com") are fetched over https; App Transport Security blocks plain http. If the Mac app is ever sandboxed, it needs `com.apple.security.network.client`.
+- Bare domains ("example.com") are fetched over https; App Transport Security blocks plain http. The sandboxed Mac app can fetch only because of `com.apple.security.network.client`.
 - When the feed is at the bottom and content grows, for example when a preview arrives, `FeedScroller` follows it down. If the user has scrolled up, the feed stays put.
 
 ### macOS feed and window (don't undo these)
@@ -108,6 +108,16 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 - Delete shows Telegram's alert ("This action can't be undone" / "Delete selected message?"), then `AppDatabase.deleteItem` writes the tombstone.
 - Screenshots are in the display's color profile, not sRGB. Saturated colors shift: Telegram's red #EF5B5B reads as #DE6560 in a screenshot. Dark neutrals barely move. Convert a saturated color, or check it in the harness, before putting it in `Theme`.
 
+### iOS keyboard
+- The keyboard comes up only when a field is tapped. Like Telegram-iOS, the composer isn't focused when the chat opens (the Mac still focuses it).
+- A tap anywhere in the feed puts the keyboard away: beside a bubble, on one, or above them. Telegram-iOS adds one tap recognizer to the whole history list (`ChatControllerNode.swift`). Here it's a simultaneous `TapGesture` on the `ScrollView`, enabled only while a field has focus.
+- `HideKeyboardButton` (`Composer.swift`) sits on top of the keyboard, under the send button, driven by `keyboardWillShow`/`keyboardWillHide`.
+  - Not a `.keyboard` toolbar. On iOS 26 that toolbar covers bottom `safeAreaInset` content, which is the composer, until something else forces a layout (Apple forums thread 798598, still open).
+  - Not in the keyboard's own top row either. `inputAssistantItem` bar buttons only show on iPad; the iPhone simulator (iOS 26.3) ignored them.
+  - While hidden, its row is clipped to zero height, not removed, and the growing clip reveals it out of the keyboard's top edge. The composer inset has `.geometryGroup()`. Without it the row skipped the keyboard's animation: inserted, faded in, or clipped, the button jumped to its final spot and showed over the feed while the composer was still rising.
+  - Its row follows the keyboard with `.smooth` over the duration the keyboard notification reports.
+- The chat background extends under the keyboard (`ignoresSafeArea()`), because the iOS 26 keyboard shows the app behind its rounded top corners.
+
 ## Working on the app
 - After adding or removing files, run `xcodegen generate`. The `.xcodeproj` lists files explicitly.
 - Build both schemes after UI changes. `App/` is shared, so a Mac change can break the iOS build.
@@ -120,12 +130,17 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
   - Synthetic clicks can leave the harness window inactive, and then ⌘ shortcuts never arrive. Activate the window again before sending one.
   - Events posted with `NSApp.postEvent` go through `WindowEventMonitor`, so post synthetic right-clicks and keys that way. Synthetic scroll-wheel events never reached the feed, posted or sent with `CGEvent.postToPid`.
   - StatemonoKit depends on GRDB, so make the harness a SwiftPM executable package that depends on `Packages/StatemonoKit` by path. Copy `App/Chat/*.swift` into its sources on each build, and seed a database through `AppDatabase`.
+- For iOS, use the simulator. `xcrun simctl io <device> screenshot` works without Screen Recording permission. To tap and type, make a scratch xcodegen project with an app target over `App/` (its own bundle ID) and a UI-test target. `XCUIScreen.main.screenshot()` saves frames, and `TEST_RUNNER_<NAME>` passes environment variables to the tests.
+  - `simctl install` can hang on a simulator's first boot. Shut it down and boot it again.
 - App icon: `Design/statemono-logo-icon.png` is the source. The iOS icon is a flattened, opaque, full-bleed 1024 image. The macOS icons put an 824pt body on a 1024 canvas with continuous corners of radius 185.4 and a soft shadow, at 16–1024px.
 
 ## Config
 - IDs come from `APP_BUNDLE_ID` in project.yml (`com.statemono`). `DEVELOPMENT_TEAM` is Pyhash LLC's paid team (`8G6DC3A5B8`); the free personal team can't use TestFlight or App Groups.
-- TestFlight (iOS): every upload needs a higher `CURRENT_PROJECT_VERSION` in project.yml.
-  - Archive unsigned: `xcodebuild archive -scheme Statemono-iOS -destination 'generic/platform=iOS' -archivePath <path> CODE_SIGNING_ALLOWED=NO`. A signed archive fails because the team has no registered devices, and development profiles need one.
-  - Then `xcodebuild -exportArchive -allowProvisioningUpdates` with export options `method app-store-connect`, `destination upload`, `signingStyle automatic`, `teamID 8G6DC3A5B8`, `manageAppVersionAndBuildNumber false`. The export signs for the App Store and uploads with the Xcode account.
-  - The App Store Connect app has iOS and macOS. A Mac build needs the App Sandbox (plus `com.apple.security.network.client`) and real signing first; the sandboxed app keeps its data in its container, apart from today's `~/Library/Application Support/com.statemono`.
+- TestFlight: both apps ship with the same version and build number (0.1.1 (3) went out for both). Every upload needs a higher `CURRENT_PROJECT_VERSION` in project.yml. The App Store Connect app has iOS and macOS.
+  - iOS: archive unsigned: `xcodebuild archive -scheme Statemono-iOS -destination 'generic/platform=iOS' -archivePath <path> CODE_SIGNING_ALLOWED=NO`. A signed archive fails because the team has no registered devices, and development profiles need one.
+  - macOS: archive signed: `xcodebuild archive -scheme Statemono-macOS -destination 'generic/platform=macOS' -archivePath <path> -allowProvisioningUpdates`. It signs with the team's Apple Development certificate. Don't archive it unsigned: the entitlements (sandbox, network) are part of the signature.
+  - Then, for either, `xcodebuild -exportArchive -allowProvisioningUpdates` with export options `method app-store-connect`, `destination upload`, `signingStyle automatic`, `teamID 8G6DC3A5B8`, `manageAppVersionAndBuildNumber false`. The export signs for the App Store and uploads with the Xcode account (for the Mac, as a signed .pkg).
+- The Mac app is sandboxed (`Config/Statemono-macOS.entitlements`, generated from project.yml): App Sandbox plus `com.apple.security.network.client`, with category Productivity.
+  - Its files live in `~/Library/Containers/com.statemono/Data/Library/Application Support/com.statemono`. The unsandboxed builds' data in `~/Library/Application Support/com.statemono` was left behind on purpose.
+  - The terminal can't read or write that container ("Operation not permitted"). To seed a database for a test, use a scratch copy of the app with a different bundle ID, or Finder.
 - Deployment targets: iOS 18 / macOS 15. Swift 6 language mode.

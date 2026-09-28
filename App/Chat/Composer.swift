@@ -42,7 +42,11 @@ struct Composer: View {
         }
         .padding(.horizontal, Metrics.sideMargin)
         .padding(.bottom, Metrics.composerBottom)
+        #if os(macOS)
+        // On the Mac the message field is the chat's default responder, as in Telegram. On iOS the keyboard would
+        // cover half the feed, so like Telegram-iOS it waits for a tap on the field.
         .onAppear { focus.wrappedValue = .composer }
+        #endif
     }
 
     private func circleButton(action: @escaping () -> Void, @ViewBuilder label: () -> some View) -> some View {
@@ -55,3 +59,22 @@ struct Composer: View {
         .chromeBackground(Circle())
     }
 }
+
+#if os(iOS)
+/// Puts the keyboard away. iPhone keyboards have no key for it, and on iPhone the system ignores buttons placed in
+/// the keyboard's own top row, so this sits on top of the keyboard, under the send button.
+/// Not a `.keyboard` toolbar: on iOS 26 that toolbar covers the composer, which is a bottom safe-area inset.
+struct HideKeyboardButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        ChromeIconButton(systemImage: "keyboard.chevron.compact.down", size: 16, action: action)
+            .frame(width: Metrics.chromeHeight, height: Metrics.chromeHeight)
+            .chromeBackground(Circle())
+            .accessibilityLabel("Hide Keyboard")
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .padding(.horizontal, Metrics.sideMargin)
+            .padding(.bottom, Metrics.composerBottom)
+    }
+}
+#endif
