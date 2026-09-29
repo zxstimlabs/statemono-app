@@ -13,6 +13,7 @@ struct StatemonoApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1000, height: 776)
         .windowResizability(.contentMinSize)
+        .commands { SettingsCommands() }
         #endif
     }
 }

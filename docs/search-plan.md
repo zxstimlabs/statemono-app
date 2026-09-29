@@ -1,6 +1,6 @@
 # Search plan: progressive search
 
-Status: draft, updated 2026-09-29. No app code yet. Phase 0 is under way: the test tool, the link snapshot, tags and speed are done, and recall waits for the owner's queries (see Phase 0 results).
+Status: draft, updated 2026-09-29. Phases 1 (typo tolerance) and 2 (Settings and the results list) are built. Phase 0's test tool, link snapshot, tags and speed are done, and its recall numbers wait for the owner's queries (see Phase 0 results).
 
 ## The idea
 
@@ -120,16 +120,17 @@ Each tier adds a source to the same query.
 
 This is today's prefix search, widened with typo tolerance.
 
-- **Typo tolerance:**
-  - Each query word, folded the way the tokenizer folds (lowercase, no accents), is compared against the index's vocabulary. `fts5vocab` over `itemSearch` holds exactly those folded terms.
+- **Typo tolerance** (built in Phase 1: `SearchVocabulary` and `AppDatabase.search` in StatemonoKit's `Search/`):
+  - Each query word is folded by the search tokenizer itself (lowercase, no accents), then compared against the index's vocabulary. `fts5vocab` over `itemSearch` holds exactly those folded terms.
+  - **Only words that match nothing get alternatives.** A word that is, or starts, a word in the index is taken as spelled right. Otherwise "form" would also find "from", and since results are in date order, not by relevance, that noise would mix in. This rule was added while building Phase 1.
   - Allowed edits (Damerau–Levenshtein distance): 1 for words of 4–7 letters, 2 for 8 or more. Words of 3 letters or fewer must match exactly.
-  - The word still being typed is compared against vocabulary word beginnings of the same length, so "sqlte" finds "sqlite" before the word is finished.
-  - Each query word gets at most about 10 alternatives, the most common first.
-  - The FTS query becomes, for each word: `(word* OR alternative OR …)`, with every word still required.
+  - The last word may be unfinished, so it's also compared against the beginnings of index words of the same length: "levenhs" finds words starting with "levensh". Earlier words must be whole words within reach.
+  - Each query word gets at most 10 alternatives, the most common first.
+  - The FTS query becomes, for each word: `(word* OR alternative OR beginning* …)`, with every word still required.
 - **Always on:** it needs only SQLite's FTS5, which every supported OS has, and a little Swift. There's nothing to download and no switch.
 - **Highlighting:** bubbles highlight the typed words and the alternative words that matched. Both are already folded, so `SearchText` handles them as it does now.
 - **Timing:** runs on every keystroke, debounced 0.2s as Telegram-iOS does (`ChatControllerUpdateSearch.swift:96`).
-- **Cost:** a vocabulary lookup, with no download and no background work.
+- **Cost:** a scan of the vocabulary, with no download and no background work. The vocabulary is kept in memory and read again only when items change (their count, latest edit or latest preview), which also catches writes from other processes.
 
 ### Smart Search: related matches, by meaning
 
@@ -254,7 +255,7 @@ Measured on 2026-09-29 on this Mac (macOS 27, Xcode 27). Recall below comes from
 | A link's vector | 13ms, so a year of links (about 3,650) takes under a minute |
 | A query's vector | 10ms |
 | Comparing a query with 10,000 / 50,000 link vectors | 0.3ms / 2.7ms |
-| Typo alternatives for a two-word query, over 880 / 10,000 / 50,000 words | 0.5ms / 9ms / 48ms |
+| Typo alternatives for a two-word query, over 880 / 10,000 / 50,000 words | 0.3ms / 5ms / 27ms (the app's version, from Phase 1) |
 | A link's tags | 1.1s median, so a year's backlog takes about an hour, done gradually |
 
 - A plain scan of the vocabulary is fast enough: the test set's 90 links have 880 words, and a year of links should stay near 10,000. If it grows well past that, compare only words of similar length.
@@ -282,16 +283,31 @@ Measured on 2026-09-29 on this Mac (macOS 27, Xcode 27). Recall below comes from
 
 **Next:** the owner writes 20–30 queries in `search-test-links.md`, then `swift run SearchEval eval` gives the real numbers.
 
-### Phase 1: Basic
+### Phase 1: Basic (built 2026-09-29)
 
 - **Scope:** typo tolerance and highlighting of the matched alternatives. No new tables, downloads or background work.
-- **Code:** StatemonoKit, with tests for typos in finished words and in the word still being typed.
-- **Ranking:** results merge from the start into one ranked list with a match kind (exact, prefix, typo, tag, related), so later tiers add sources without changing callers.
+- **Code:** StatemonoKit's `Search/`: `AppDatabase.search` returns `SearchResults`, newest first, each item with its `SearchMatch` (exact, prefix or typo; later tiers add tag and related), plus the folded words to highlight. `SearchTests` covers typos in finished words and in the word still being typed, spelled-right words, short words, result order and match kinds, and new words being found right after they're saved.
+- **App:** `ChatSearch` waits 0.2s after a keystroke, like Telegram-iOS, and highlights the typed words and their alternatives. Results are newest first, so "1 of N" is the newest.
+- **Checked** in the iPhone simulator: "rustdsk" finds and highlights RustDesk, and "overtke" finds overtake/TelegramSwift.
+- **Phase 0 tool:** `SearchEval` now measures the app's own search instead of its prototype. On the smoke queries, typo tolerance still finds 10 of 16.
 
-### Phase 2: Settings and the results list
+### Phase 2: Settings and the results list (built 2026-09-29)
 
 - **Settings:** the gear button in place of ⋯, and the Settings sheet with the Smart Search section on iPhone and Mac, with every row and explanation above. Apple Intelligence tags shows its status even before the tier is built.
 - **Results:** the list (Matches only at this point) on iPhone and Mac.
+
+What was built (`App/Settings/SettingsView.swift`, `App/Chat/SearchResultsList.swift`, `SearchDropdown.swift`, `SearchSnippet.swift`):
+- **Settings sheet:** a "Search" section with the three tier rows and a storage row, and a footer about turning steps off. The Smart Search and tags switches are shown but disabled, marked "Arrives in a later build", until Phases 3 and 4. The tags row reads Apple Intelligence's real availability. On the Mac, ⌘, and the app menu's Settings… open it (`SettingsCommands`).
+- **FoundationModels** is weak-linked automatically, checked with `otool`, so iOS 18 and macOS 15 still launch.
+- **iPhone list:**
+  - The Telegram-iOS toggle, counter, rows (fonts, date rules, 18pt inline thumbnail, white matched words, snippet cut) and in/out animation, as researched from `ChatInlineSearchResultsListComponent` and `ChatListItem`.
+  - Rows show the link's title where Telegram shows the author, and no avatar, since in Saved Messages that's always you.
+- **Mac dropdown:** TelegramSwift's 44pt rows, cursor and current-row colors, arrow keys and slide-out, as researched from `InputContextHelper` and `ContextSearchMessageItem`.
+- **Where it departs from Telegram:**
+  - **iPhone arrows float over the chat.** The older/newer arrows moved out of the search panel into `FeedButtons`, as in Telegram-iOS (`ChatHistoryNavigationButtons`), where down scrolls to the bottom from the newest result. With the toggle, the panel had no room for them on a phone.
+  - **The Mac dropdown is a floating glass card** under the search panel, as wide as the panel. TelegramSwift's spans the chat under an opaque header; the app's header floats.
+  - **Return opens the cursor's row on the Mac.** TelegramSwift only acts on the selected row, which looks like a bug.
+  - **Picking a row makes it the current result on iPhone too**, so "N of M" and the arrows carry on from it. Telegram-iOS leaves the current result where it was.
 
 ### Phase 3: Smart Search
 

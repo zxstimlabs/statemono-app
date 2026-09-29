@@ -10,6 +10,8 @@ import Synchronization
 public final class AppDatabase: Sendable {
     let writer: any DatabaseWriter
     let media: MediaStore
+    /// The search index's words, for typo tolerance (see `searchVocabulary()`).
+    let vocabularyCache = Mutex<CachedVocabulary?>(nil)
 
     public init(_ writer: any DatabaseWriter, media: MediaStore) throws {
         self.writer = writer
@@ -228,22 +230,6 @@ public final class AppDatabase: Sendable {
                 .asRequest(of: FeedEntry.self)
                 .fetchOne(db)
             return entry.map { $0.preview }
-        }
-    }
-
-    // MARK: - Search
-
-    /// Items where every word of `query` starts a word in the text or preview, oldest first. "duong" finds "đường",
-    /// and "grd" finds "GRDB".
-    public func search(_ query: String) async throws -> [UUID] {
-        guard let pattern = FTS5Pattern(matchingAllPrefixesIn: query) else { return [] }
-        return try await writer.read { db in
-            try UUID.fetchAll(db, sql: """
-                SELECT item.id FROM item
-                JOIN itemSearch ON itemSearch.rowid = item.rowid
-                WHERE itemSearch MATCH ? AND item.deletedAt IS NULL
-                ORDER BY item.createdAt
-                """, arguments: [pattern])
         }
     }
 }

@@ -174,13 +174,16 @@ enum Eval {
         // Mac's dictionary.
         let dictionary = ((try? String(contentsOfFile: "/usr/share/dict/words", encoding: .utf8)) ?? "")
             .split(separator: "\n").map { $0.lowercased() }.shuffled()
-        for (name, vocabulary) in [("the test set's", plain.vocabulary)]
-            + [10_000, 50_000].map({ count in ("\(count) dictionary", dictionary.prefix(count).map { ($0, 1) }) }) {
-            let matcher = TypoMatcher(vocabulary: vocabulary)
+        for (name, entries) in [("the test set's", plain.vocabulary)]
+            + [10_000, 50_000].map({ count in ("\(count) dictionary", dictionary.prefix(count).map { (text: $0, documents: 1) }) }) {
+            let vocabulary = SearchVocabulary(entries)
             let start = ContinuousClock.now
             let rounds = 10
-            for _ in 0..<rounds { _ = matcher.pattern(for: "levenshtien distanse") }
-            print("typo alternatives for a two-word query, \(name) words (\(vocabulary.count)): \(ms(seconds(since: start) / Double(rounds)))")
+            for _ in 0..<rounds {
+                _ = vocabulary.alternatives(for: "levenshtien", isLast: false)
+                _ = vocabulary.alternatives(for: "distanse", isLast: true)
+            }
+            print("typo alternatives for a two-word query, \(name) words (\(entries.count)): \(ms(seconds(since: start) / Double(rounds)))")
         }
     }
 }
@@ -192,8 +195,8 @@ enum Eval {
 final class Library {
     let database: AppDatabase
     private var linkIDs: [UUID: Int] = [:]
-    /// Every folded word in the index, with the number of links it appears in (`fts5vocab`).
-    private(set) var vocabulary: [(term: String, documents: Int)] = []
+    /// Every folded word in the index, with the number of links it appears in, as the app's search reads it.
+    private(set) var vocabulary: [(text: String, documents: Int)] = []
 
     init(snapshot: [Snapshot.Entry], tags: [Int: [String]]) async throws {
         database = try AppDatabase.inMemory(media: MediaStore(directory: FileManager.default.temporaryDirectory.appending(path: "SearchEval-unused")))
@@ -205,93 +208,16 @@ final class Library {
             let preview = entry.hasText ? LinkPreview(siteName: entry.siteName, title: entry.title, summary: entry.summary) : nil
             try await database.savePreview(preview, for: item.id)
         }
-        vocabulary = try await database.writer.write { db in
-            try db.execute(sql: "CREATE VIRTUAL TABLE temp.vocabulary USING fts5vocab(main, itemSearch, row)")
-            return try Row.fetchAll(db, sql: "SELECT term, doc FROM temp.vocabulary").map { ($0["term"], $0["doc"]) }
-        }
+        vocabulary = try await database.searchVocabulary().words.map { (text: $0.text, documents: $0.documents) }
     }
 
-    /// Link numbers, newest first. Without typos this is the app's search as it is today.
+    /// Link numbers, newest first, from the app's own search (`AppDatabase.search`). Without typos, only the results
+    /// that matched as typed, which is the search before Phase 1.
     func keyword(_ query: String, typos: Bool = false) async throws -> [Int] {
-        let ids: [UUID]
-        if typos {
-            guard let pattern = try typoPattern(for: query) else { return [] }
-            ids = try await database.writer.read { db in
-                try UUID.fetchAll(db, sql: """
-                    SELECT item.id FROM item
-                    JOIN itemSearch ON itemSearch.rowid = item.rowid
-                    WHERE itemSearch MATCH ? AND item.deletedAt IS NULL
-                    ORDER BY item.createdAt
-                    """, arguments: [pattern])
-            }
-        } else {
-            ids = try await database.search(query)
-        }
-        return ids.compactMap { linkIDs[$0] }.reversed()
+        try await database.search(query).items
+            .filter { typos || $0.match != .typo }
+            .compactMap { linkIDs[$0.id] }
     }
-
-    func typoPattern(for query: String) throws -> String? {
-        TypoMatcher(vocabulary: vocabulary).pattern(for: query)
-    }
-}
-
-/// The plan's typo tolerance: each word becomes `("word"* OR "alternative" OR …)`, with every word required.
-/// Alternatives are index words within 1 edit for words of 4–7 letters, 2 for 8 or more; words of 3 letters or fewer
-/// match only as typed. The last word may be unfinished, so it's also compared with index words cut to its length.
-/// At most 10 alternatives per word, the most common first.
-struct TypoMatcher {
-    let vocabulary: [(term: String, documents: Int)]
-
-    func pattern(for query: String) -> String? {
-        let words = query.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
-            .replacingOccurrences(of: "đ", with: "d")
-            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
-            .map(String.init)
-        guard !words.isEmpty else { return nil }
-        let groups = words.enumerated().map { index, word -> String in
-            let quoted = "\"\(word)\"*"
-            guard word.count > 3 else { return quoted }
-            let limit = word.count <= 7 ? 1 : 2
-            let isLast = index == words.count - 1
-            let target = Array(word)
-            let alternatives = vocabulary
-                .filter { entry in
-                    guard !entry.term.hasPrefix(word) else { return false }
-                    let term = Array(entry.term)
-                    if editDistance(target, term, limit: limit) <= limit { return true }
-                    return isLast && term.count > target.count && editDistance(target, Array(term.prefix(target.count)), limit: limit) <= limit
-                }
-                .sorted { $0.documents > $1.documents }
-                .prefix(10)
-                .map { "\"\($0.term)\"" }
-            return alternatives.isEmpty ? quoted : "(" + ([quoted] + alternatives).joined(separator: " OR ") + ")"
-        }
-        return groups.joined(separator: " AND ")
-    }
-}
-
-/// Damerau–Levenshtein distance (adjacent swaps count as one edit), giving up once it's past `limit`.
-func editDistance(_ a: [Character], _ b: [Character], limit: Int) -> Int {
-    if abs(a.count - b.count) > limit { return limit + 1 }
-    if a.isEmpty || b.isEmpty { return max(a.count, b.count) }
-    var previous2 = [Int](repeating: 0, count: b.count + 1)
-    var previous = Array(0...b.count)
-    var current = [Int](repeating: 0, count: b.count + 1)
-    for i in 1...a.count {
-        current[0] = i
-        var rowMinimum = current[0]
-        for j in 1...b.count {
-            let cost = a[i - 1] == b[j - 1] ? 0 : 1
-            current[j] = min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost)
-            if i > 1, j > 1, a[i - 1] == b[j - 2], a[i - 2] == b[j - 1] {
-                current[j] = min(current[j], previous2[j - 2] + 1)
-            }
-            rowMinimum = min(rowMinimum, current[j])
-        }
-        if rowMinimum > limit { return limit + 1 }
-        (previous2, previous, current) = (previous, current, previous2)
-    }
-    return previous[b.count]
 }
 
 // MARK: - Vectors

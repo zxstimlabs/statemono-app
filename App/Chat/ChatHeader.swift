@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The avatar, the search field, and the ⋯ button. The search field opens the search panel below it.
+/// The avatar, the search field, and the Settings gear. The search field opens the search panel below it.
 struct ChatHeader: View {
     /// Room on the leading side for the window's traffic lights.
     var leadingInset: CGFloat
@@ -8,15 +8,18 @@ struct ChatHeader: View {
     var focus: FocusState<ChatFocus?>.Binding
     var onOpenSearch: () -> Void
     var onCloseSearch: () -> Void
+    var onOpenResult: (Message.ID) -> Void
+    var onOpenSettings: () -> Void
 
     var body: some View {
         HStack(spacing: Metrics.chromeSpacing) {
             SavedMessagesAvatar()
                 .frame(width: Metrics.chromeHeight, height: Metrics.chromeHeight)
-            SearchField(search: search, focus: focus, onOpen: onOpenSearch, onClose: onCloseSearch)
-            ChromeIconButton(systemImage: "ellipsis", size: 15, weight: .bold) {}
+            SearchField(search: search, focus: focus, onOpen: onOpenSearch, onClose: onCloseSearch, onOpenResult: onOpenResult)
+            ChromeIconButton(systemImage: "gearshape", size: 16, action: onOpenSettings)
                 .frame(width: Metrics.chromeHeight, height: Metrics.chromeHeight)
                 .chromeBackground(Circle())
+                .accessibilityLabel("Settings")
         }
         .padding(.leading, leadingInset)
         .padding(.trailing, Metrics.sideMargin)

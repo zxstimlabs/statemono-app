@@ -11,10 +11,10 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 
 ## Status
 - The feed reads from the SQLite database (GRDB) in `Packages/StatemonoKit/Sources/StatemonoKit/Database/`. Messages, previews, and the image index survive relaunches.
-- Built so far: feed with Telegram-style bubbles and link previews, composer, attach menu (items are stubs), message context menu (Copy Text and Delete work), in-chat search over all history, send animation, paging, app icon, scroll-to-bottom button. On iOS, a hide-keyboard button.
+- Built so far: feed with Telegram-style bubbles and link previews, composer, attach menu (items are stubs), message context menu (Copy Text and Delete work), in-chat search over all history with typo tolerance and a results list (iPhone) or dropdown (Mac), a Settings sheet from the header's gear, send animation, paging, app icon, scroll-to-bottom button. On iOS, a hide-keyboard button.
 - Sending a link fetches its preview on the device (`Packages/StatemonoKit/Sources/StatemonoKit/LinkPreviews/`). X posts and ordinary websites are covered.
 - The iOS target compiles the same `App/` sources but its UI is only partly tuned. Its text follows the system Text Size (see UI reference), its keyboard behaves like Telegram-iOS's (see iOS keyboard), and its bubbles are as wide as Telegram-iOS allows (see UI reference).
-- Stubs: header ⋯, paperclip menu items, mic, and the context menu's Reply, Translate, Edit, Pin, Forward and Select.
+- Stubs: paperclip menu items, mic, and the context menu's Reply, Translate, Edit, Pin, Forward and Select.
 
 ## Plan (build and test after each step)
 1. StatemonoKit: model, database, FTS search (with the đ fix), tests. **Done.**
@@ -22,7 +22,7 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 3. Metadata: fxtwitter for X, oEmbed (YouTube/TikTok/Vimeo/Spotify), OpenGraph, LPMetadataProvider fallback. **X and OpenGraph websites done.** Still to do: oEmbed and the LPMetadataProvider fallback. Images are cached on disk like Telegram (see Link previews).
 4. Share extension + App Group
 5. Sync: undecided. Options are CloudKit now, my own server (PocketBase/Go) from the start, or no sync in v1. Don't run CloudKit and a server side by side. The server is what lets a Linux (Omarchy/Hyprland) desktop join.
-- Search beyond keywords: planned in `docs/search-plan.md`. Phase 0 is under way: `Tools/SearchEval` (a command-line package, not part of the apps) measures search on the links in `docs/search-test-links.md`, and recall waits for the owner's queries. No app code until the owner says go.
+- Search beyond keywords: planned in `docs/search-plan.md`. Phase 1 (typo tolerance) is built. Phase 0's `Tools/SearchEval` (a command-line package, not part of the apps) measures search on the links in `docs/search-test-links.md`; its recall waits for the owner's queries. Build later phases only when the owner names them.
   - It's progressive. The app installs light, with nothing bundled, downloaded or running in the background.
   - English only.
   - Typo tolerance is part of Basic search, always on.
@@ -45,7 +45,7 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 - Give the items table an explicit `INTEGER PRIMARY KEY` rowid. `VACUUM` can renumber implicit rowids and break an external-content FTS index. The rowid never leaves the device.
 - GRDB `ValueObservation` doesn't see writes from other processes. The Mac app can be open while the share extension writes, so post a Darwin notification from the extension.
 - SQLite in an App Group container can get the iOS app killed (`0xdead10cc`) if it holds a lock while suspended. Follow GRDB's "Sharing a Database" guide.
-- In-chat search uses the FTS5 table `itemSearch` (`AppDatabase.search`). It indexes the text and the preview's site name, title, and summary. Every query word must start a word there (`FTS5Pattern(matchingAllPrefixesIn:)`), ignoring case and tone marks, with đ = d. Bubbles highlight with the same folding (`SearchText` in `ChatSearch.swift`).
+- In-chat search uses the FTS5 table `itemSearch` (`AppDatabase.search`, in StatemonoKit's `Search/`). It indexes the text and the preview's site name, title, and summary. Every query word must start a word there, ignoring case and tone marks, with đ = d. A word that matches nothing as typed also tries other spellings from the index's vocabulary (`SearchVocabulary`, read through a temporary `fts5vocab` table on the writer's connection and cached until items change). Results come newest first with how they matched. Bubbles highlight the typed words and the other spellings, with the same folding (`SearchText` in `ChatSearch.swift`).
 
 ### Database
 - Tables follow Telegram's model:
@@ -59,11 +59,12 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
   - Reaching the top calls `loadOlder()` and moves the start back 50. `FeedScroller.willPrepend()` shifts the scroll position by the added height so nothing moves on screen.
   - Jumping to an older search result or date moves the start back to just before it.
 - The database is at Application Support/<bundle id>/statemono.sqlite, a WAL `DatabasePool`. On the Mac, Application Support is inside the sandbox container (see Config). It moves into the App Group with the share extension (step 4). Opening it registers the tokenizer on every connection (`AppDatabase.configuration`).
-- If the database can't be opened (a damaged file, or a failed migration), the app doesn't crash. `Library` (`App/Chat/DatabaseErrorView.swift`) shows the error and offers:
+- If the database can't be opened (a damaged file, or a failed migration), the app shouldn't crash. `Library` (`App/Chat/DatabaseErrorView.swift`) shows the error and offers:
   - Try Again.
   - Start with a New Database…, after a confirmation. `AppDatabase.moveAside` renames the file and its WAL and SHM files to `statemono-unreadable-<local date>.sqlite` in the same folder, never deleting them, then opens a new database.
   - Show in Finder.
   Cached image files are left alone, so they're reused if the same links come back.
+  - Known bug, found 2026-09-29, not fixed: a file that isn't a database crashes instead. Registering the tokenizer (`db.add(tokenizer:)` in `AppDatabase.configuration`) calls GRDB's `FTS5.api`, which hits `fatalError("FTS5 is not available")` when it can't prepare a statement on the damaged file. The test `a damaged file fails to open…` crashes the same way, on the commit before Phase 1 too.
 
 ### Link previews
 - x.com serves an empty JavaScript page to anything that isn't a known crawler, so post links go through the fxtwitter API (`api.fxtwitter.com/status/{id}`).
@@ -111,6 +112,19 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
   - Leaving the field with an empty query closes the search. Clicking the feed doesn't take focus from a text field on macOS, so the feed's scroll content has a tap gesture that closes an empty search. A gesture on the `ScrollView` itself never receives the click.
 - Inline timestamps reserve their space with invisible text at the end of the message. That reserve must end in visible characters (`"\u{00A0}00"`), because trailing spaces don't count toward a line's width.
 
+### Search results and Settings
+- Settings is a sheet over the chat on both platforms (`App/Settings/SettingsView.swift`), opened by the header's gear. On the Mac, ⌘, and the app menu's Settings… open the same sheet through a focused scene value (`SettingsCommands`), not a Settings window.
+  - It imports FoundationModels, which iOS 18 and macOS 15 lack. Xcode weak-links it on its own (`LC_LOAD_WEAK_DYLIB`, checked with `otool -l`); keep every use behind `#available(iOS 26, macOS 26, *)`.
+- The search results list (`ChatSearch.rows`, loaded 100 at a time) has one form per platform. `SearchRowContent` and `SearchSnippet` pick each row's text, cut it around the first match and find the matched words, the way Telegram-iOS's search rows do.
+- iPhone: Telegram-iOS's "Show as List" (`SearchResultsList`), an opaque page over the chat, under the header, search panel and composer.
+  - It fades in over 0.2s, grows from 0.95 and sharpens from a 30pt blur while the chat behind shrinks to 0.95 (`setList(shown:)`), and reverses on the way out.
+  - In list mode the counter reads "M messages" and taps back to the chat.
+  - The older/newer arrows aren't in the search panel: as in Telegram-iOS, they float over the chat in `FeedButtons`, and hide in list mode.
+- Mac: TelegramSwift's dropdown (`SearchDropdown`), a glass card under the search panel.
+  - It shows while the search field has focus and there are results, at most half the chat tall.
+  - The field's arrow keys move its cursor and wrap, Return opens the cursor's row, and Escape clears the cursor before it closes the search.
+  - Opening a row, or using the panel's arrows, takes focus away, which closes it.
+
 ### Menus
 - The attach menu and a message's context menu share `MenuPanel`, `MenuRow` and `MenuSeparator` (`Menu.swift`). The numbers come from TelegramSwift's `AppMenu`: 28pt rows, 13pt medium, an 18pt icon 15pt in, text at 42pt, 5pt separators, 4pt top and bottom. The 18pt corner radius comes from a screenshot of current Telegram; the July 2025 source says 10.
 - The context menu (`MessageMenu.swift`) opens on right-click or Control-click anywhere on a message's row, as TelegramSwift's `TableRowView` does, beside the bubble included. SwiftUI's `.contextMenu` on macOS is a native `NSMenu`, which looks nothing like Telegram's, and macOS 15 SwiftUI has no secondary-click gesture. Instead, one `WindowEventMonitor` in `ChatView` catches the click, and `FeedScroller.contentPoint(of:)` plus `rowFrames` find the row. Clicks on the header, composer or search panel don't count.
@@ -121,7 +135,7 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 
 ### iOS keyboard
 - The keyboard comes up only when a field is tapped. Like Telegram-iOS, the composer isn't focused when the chat opens (the Mac still focuses it).
-- A tap anywhere in the feed puts the keyboard away: beside a bubble, on one, or above them. Telegram-iOS adds one tap recognizer to the whole history list (`ChatControllerNode.swift`). Here it's a simultaneous `TapGesture` on the `ScrollView`, enabled only while a field has focus.
+- A tap anywhere in the feed puts the keyboard away: beside a bubble, on one, or above them. Telegram-iOS adds one tap recognizer to the whole history list (`ChatControllerNode.swift`). Here it's the same: a `UITapGestureRecognizer` on the feed's `UIScrollView` (`FeedTapToDismiss`), enabled only while a field has focus. It recognizes alongside everything else and lets touches through, so links still open. A SwiftUI `TapGesture` on the `ScrollView` worked on iOS 26 but missed taps on iOS 18. The search results list, which covers the feed, puts the keyboard away on a tap the same way.
 - The composer sits 8pt (`Metrics.composerBottom`) above the keyboard, as in Telegram-iOS (`inputPanelsInset`). Nothing goes between them: an earlier hide-keyboard row under the composer left a gap, and the owner had it removed.
 - The floating buttons (`FeedButtons`, see Scroll-to-bottom button) add Hide Keyboard on iOS, above Scroll to Bottom, while the keyboard is up (`keyboardWillShow`/`keyboardWillHide`). Telegram-iOS has none; the owner asked for it.
   - It floats over the feed instead of sitting in a row. A `.keyboard` toolbar would cover the composer on iOS 26 (Apple forums thread 798598), and the iPhone ignores `inputAssistantItem` buttons.
@@ -138,7 +152,7 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
   - TelegramSwift has no fade at either edge.
 
 ### Scroll-to-bottom button
-- `FeedButtons` (`FeedButtons.swift`) is an overlay on the feed's bottom-trailing corner, inside the composer's safe-area inset, so it moves with the composer and keyboard and adds no inset. The buttons are 36pt glass circles (`chromeBackground`) in the mic button's column, and Scroll to Bottom has Telegram's 18×9 down chevron.
+- `FeedButtons` (`FeedButtons.swift`) is an overlay on the composer, stacked on its top edge at the trailing end, so it moves with the composer and keyboard and adds no inset. It used to be an overlay on the feed, placed from the feed's safe area; on iOS 18 that put the Hide Keyboard button in the middle of the screen. The buttons are 36pt glass circles (`chromeBackground`) in the mic button's column, and Scroll to Bottom has Telegram's 18×9 down chevron.
 - iOS copies Telegram-iOS's `ChatHistoryNavigationButtons`:
   - Shows 40pt or more above the newest message (`FeedFollower.isAwayFromBottom`).
   - 12pt above the composer's field, 12pt between stacked buttons. A hidden button's slot closes, so the one above slides down. Telegram's buttons are 40pt, the size of its input buttons.
@@ -174,8 +188,8 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
   - Synthetic clicks can leave the harness window inactive, and then ⌘ shortcuts never arrive. Activate the window again before sending one.
   - The composer isn't focused when the harness opens. Click it before posting key events to type.
   - Events posted with `NSApp.postEvent` go through `WindowEventMonitor`, so post synthetic right-clicks and keys that way. Synthetic scroll-wheel events never reached the feed, posted or sent with `CGEvent.postToPid`.
-  - StatemonoKit depends on GRDB, so make the harness a SwiftPM executable package that depends on `Packages/StatemonoKit` by path. Copy `App/Chat/*.swift` into its sources on each build, and seed a database through `AppDatabase`.
-- For iOS, use the simulator. `xcrun simctl io <device> screenshot` works without Screen Recording permission. To tap and type, make a scratch xcodegen project with an app target over `App/` (its own bundle ID) and a UI-test target. `XCUIScreen.main.screenshot()` saves frames, and `TEST_RUNNER_<NAME>` passes environment variables to the tests.
+  - StatemonoKit depends on GRDB, so make the harness a SwiftPM executable package that depends on `Packages/StatemonoKit` by path. Copy `App/Chat/*.swift` and `App/Settings/*.swift` into its sources on each build, and seed a database through `AppDatabase`.
+- For iOS, use the simulator. `xcrun simctl io <device> screenshot` works without Screen Recording permission. An iOS 18.6 runtime is installed too, with the simulator "iPhone 16 Pro iOS18", for iOS 18 bugs. `xcodebuild -downloadPlatform iOS -buildVersion 18.6` reported it unavailable, but the runtime arrived anyway (`xcrun simctl runtime list`). To tap and type, make a scratch xcodegen project with an app target over `App/` (its own bundle ID) and a UI-test target. `XCUIScreen.main.screenshot()` saves frames, and `TEST_RUNNER_<NAME>` passes environment variables to the tests.
   - `simctl install` can hang on a simulator's first boot. Shut it down and boot it again.
   - To seed, copy a database made with `AppDatabase` into Application Support/<bundle id> in the app's data container (`xcrun simctl get_app_container <device> <bundle id> data`).
   - For motion, `xcrun simctl io <device> recordVideo` also works without the permission. There's no ffmpeg; read frames with `AVAssetImageGenerator`.

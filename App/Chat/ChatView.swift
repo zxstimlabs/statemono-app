@@ -19,6 +19,17 @@ struct ChatView: View {
     @State private var isKeyboardShown = false
     /// How wide the feed's rows are. Bubbles are laid out from it directly (`BubbleRow`); this copy sizes preview images.
     @State private var feedWidth: CGFloat = 0
+    /// The search results list, while it's shown or on its way in or out, and its animated state (`setList(shown:)`).
+    @State private var listShown = false
+    @State private var listOpacity = 0.0
+    @State private var listScale = 0.95
+    @State private var listBlur = 30.0
+    /// The chat shrinks a little behind the list, as in Telegram-iOS.
+    @State private var chatScale = 1.0
+    #endif
+    #if os(macOS)
+    /// The chat's height, which limits the search dropdown's.
+    @State private var chatHeight: CGFloat = 0
     #endif
     #if os(macOS)
     @State private var scroller = FeedScroller()
@@ -27,36 +38,44 @@ struct ChatView: View {
     #endif
     /// A message waiting for the user to confirm deleting it.
     @State private var pendingDelete: Message.ID?
+    @State private var showsSettings = false
 
     var body: some View {
         feed
+        #if os(iOS)
+        .scaleEffect(chatScale)
+        #endif
         // Messages fade out as they scroll behind the header or the composer.
         .overlay { FeedEdgeFade(edge: .top) }
         .overlay { FeedEdgeFade(edge: .bottom) }
-        // Over the feed's bottom-trailing corner, so they ride on top of the composer and keyboard without insetting.
-        .overlay(alignment: .bottomTrailing) {
-            #if os(macOS)
-            FeedButtons(showsScrollToBottom: scroller.isAwayFromBottom, onScrollToBottom: scroller.scrollToBottom)
-            #else
-            FeedButtons(
-                showsScrollToBottom: feedFollower.isAwayFromBottom,
-                showsHideKeyboard: isKeyboardShown,
-                onScrollToBottom: feedFollower.scrollToBottom,
-                onHideKeyboard: { focus = nil }
-            )
-            #endif
-        }
+        #if os(iOS)
+        // Over the chat, under the header, the search panel and the composer.
+        .overlay { searchList }
+        #endif
         .safeAreaInset(edge: .top, spacing: 0) {
-            ChatHeader(leadingInset: headerLeadingInset, search: search, focus: $focus, onOpenSearch: openSearch, onCloseSearch: closeSearch)
+            ChatHeader(
+                leadingInset: headerLeadingInset,
+                search: search,
+                focus: $focus,
+                onOpenSearch: openSearch,
+                onCloseSearch: closeSearch,
+                onOpenResult: openResult,
+                onOpenSettings: { showsSettings = true }
+            )
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             Composer(text: $draft, focus: $focus, onAttach: { setAttachMenu(shown: true) }, onSend: send)
                 .padding(.top, 4)
+                // Stacked on the composer's top edge, so they ride with it and the keyboard without insetting the feed.
+                // An overlay on the feed placed them from its safe area, which iOS 18 works out differently.
+                .overlay(alignment: .topTrailing) {
+                    feedButtons.alignmentGuide(.top) { $0[.bottom] }
+                }
         }
         // Drops out of the header's search field and floats over the feed, instead of insetting it.
         .overlay(alignment: .top) {
             if search.isActive {
-                SearchPanel(search: search, dateRange: dateRange, onJumpToDate: jump(toDay:), onClose: closeSearch)
+                searchControls
                     .padding(.leading, headerLeadingInset + Metrics.chromeHeight + Metrics.chromeSpacing)
                     .padding(.trailing, Metrics.sideMargin + Metrics.chromeHeight + Metrics.chromeSpacing)
                     // Keeps its gap under the search field's glass, which grows while the field has focus.
@@ -112,6 +131,13 @@ struct ChatView: View {
         } message: { _ in
             Text("Delete selected message?")
         }
+        .sheet(isPresented: $showsSettings) {
+            SettingsView()
+        }
+        #if os(macOS)
+        // ⌘, and the app menu's Settings… item open the same sheet (`SettingsCommands`).
+        .focusedSceneValue(\.openSettings) { showsSettings = true }
+        #endif
         .environment(\.searchTerms, search.isActive ? search.terms : [])
         #if os(iOS)
         .environment(\.chatTextSize, ChatTextSize(dynamicTypeSize))
@@ -134,6 +160,7 @@ struct ChatView: View {
                 closeMessageMenu()
             }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { chatHeight = $0 }
         .ignoresSafeArea()
         .frame(minWidth: 380, minHeight: 320)
         #endif
@@ -217,6 +244,8 @@ struct ChatView: View {
             .background(FeedScrollerAnchor(scroller: scroller))
             #else
             .background(FeedFollowerAnchor(follower: feedFollower))
+            // As in Telegram-iOS, a tap anywhere in the feed puts the keyboard away.
+            .background(FeedTapToDismiss(isEnabled: focus != nil) { focus = nil })
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { feedWidth = $0 }
             #endif
         }
@@ -229,10 +258,33 @@ struct ChatView: View {
         .onScrollGeometryChange(for: ScrollGeometry.self, of: { $0 }) { _, geometry in
             feedFollower.update(contentHeight: geometry.contentSize.height)
         }
-        // As in Telegram-iOS, a tap anywhere in the feed puts the keyboard away: beside a bubble, on one, or above them.
-        .simultaneousGesture(TapGesture().onEnded { focus = nil }, isEnabled: focus != nil)
         #endif
     }
+
+    private var feedButtons: some View {
+        #if os(macOS)
+        FeedButtons(showsScrollToBottom: scroller.isAwayFromBottom, onScrollToBottom: scroller.scrollToBottom)
+        #else
+        FeedButtons(
+            // Telegram-iOS hides its result arrows and down button while the list shows.
+            showsScrollToBottom: feedFollower.isAwayFromBottom && !search.isShowingList,
+            showsHideKeyboard: isKeyboardShown,
+            searchArrows: searchArrows,
+            onScrollToBottom: feedFollower.scrollToBottom,
+            onHideKeyboard: { focus = nil }
+        )
+        #endif
+    }
+
+    #if os(iOS)
+    /// Telegram-iOS's result arrows, while stepping through results in the chat.
+    private var searchArrows: FeedButtons.SearchArrows? {
+        guard search.isActive, !search.isShowingList, !search.results.isEmpty else { return nil }
+        return FeedButtons.SearchArrows(canShowOlder: search.canShowOlder, onOlder: search.showOlder) {
+            if search.canShowNewer { search.showNewer() } else { feedFollower.scrollToBottom() }
+        }
+    }
+    #endif
 
     /// Header content starts after the traffic lights, which are hidden in full screen.
     private var headerLeadingInset: CGFloat {
@@ -256,6 +308,9 @@ struct ChatView: View {
     }
 
     private func closeSearch() {
+        #if os(iOS)
+        if listShown { setList(shown: false) }
+        #endif
         withAnimation(Self.panelSpring) { search.close() }
         #if os(macOS)
         // The keyboard goes back to the composer. In Telegram the message field is the chat's default responder.
@@ -264,6 +319,127 @@ struct ChatView: View {
         focus = nil
         #endif
     }
+
+    /// The search panel, and on the Mac the results dropdown under it.
+    private var searchControls: some View {
+        VStack(spacing: Self.dropdownGap) {
+            SearchPanel(
+                search: search,
+                dateRange: dateRange,
+                onJumpToDate: jump(toDay:),
+                onToggleList: toggleList,
+                onStep: steppedThroughResults,
+                onClose: closeSearch
+            )
+            #if os(macOS)
+            if showsDropdown {
+                SearchDropdown(search: search, highlighted: search.cursor, maxHeight: dropdownMaxHeight, onSelect: openResult)
+                    // Slides out from under the panel, as TelegramSwift's slides out from under its header.
+                    .zIndex(-1)
+                    .transition(Self.dropdownTransition(reduceMotion: reduceMotion))
+            }
+            #endif
+        }
+    }
+
+    #if os(iOS)
+    @ViewBuilder private var searchList: some View {
+        if listShown {
+            SearchResultsList(
+                search: search,
+                topInset: Metrics.chromeSpacing + SearchPanel.height + 8 + (focus == .search ? Metrics.focusGrowth : 0),
+                isKeyboardFocused: focus != nil,
+                onHideKeyboard: { focus = nil },
+                onSelect: openResult
+            )
+            // Rows fade out behind the header and the composer, like messages do.
+            .overlay { FeedEdgeFade(edge: .top) }
+            .overlay { FeedEdgeFade(edge: .bottom) }
+            .opacity(listOpacity)
+            .scaleEffect(listScale)
+            .blur(radius: listBlur)
+        }
+    }
+    #endif
+
+    /// A result picked in the list or dropdown: the chat jumps to it, and it becomes the current result.
+    private func openResult(_ id: UUID) {
+        if search.current == id {
+            jump(to: id)
+        } else {
+            search.select(id)
+        }
+        #if os(macOS)
+        // TelegramSwift leaves nothing focused, so the dropdown closes.
+        focus = nil
+        #else
+        setList(shown: false)
+        #endif
+    }
+
+    private func toggleList() {
+        #if os(iOS)
+        setList(shown: !search.isShowingList)
+        #endif
+    }
+
+    /// TelegramSwift's arrows take focus from the search field, which puts the dropdown away before the chat jumps.
+    private func steppedThroughResults() {
+        #if os(macOS)
+        if focus == .search { focus = nil }
+        #endif
+    }
+
+    #if os(iOS)
+    /// Telegram-iOS's list transition. In: fades in over 0.2s, grows from 0.95 and sharpens from a 30pt blur, while the
+    /// chat behind shrinks to 0.95. Out: the reverse, a little slower. Its 0.4s "spring" is really this curve.
+    private func setList(shown: Bool) {
+        search.isShowingList = shown
+        let slide = Animation.timingCurve(0.38, 0.7, 0.125, 1, duration: 0.4)
+        if shown {
+            listShown = true
+            guard !reduceMotion else {
+                (listScale, listBlur) = (1, 0)
+                withAnimation(.easeInOut(duration: 0.2)) { listOpacity = 1 }
+                return
+            }
+            withAnimation(.easeInOut(duration: 0.2)) { listOpacity = 1 }
+            withAnimation(slide) { (listScale, chatScale) = (1, 0.95) }
+            withAnimation(.easeOut(duration: 0.2)) { listBlur = 0 }
+        } else {
+            withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : slide) {
+                (listOpacity, chatScale) = (0, 1)
+            } completion: {
+                if !search.isShowingList { listShown = false }
+            }
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 0.3)) { listScale = 0.95 }
+            withAnimation(.easeOut(duration: 0.3)) { listBlur = 30 }
+        }
+    }
+    #endif
+
+    #if os(macOS)
+    /// TelegramSwift's dropdown shows while the search field has focus and there's a result.
+    private var showsDropdown: Bool {
+        focus == .search && !search.rows.isEmpty
+    }
+
+    /// At most half the chat, and never closer than 50pt to its bottom (`InputContextHelper`).
+    private var dropdownMaxHeight: CGFloat {
+        let top = Metrics.headerTop + Metrics.chromeHeight + Metrics.chromeSpacing + Metrics.focusGrowth + SearchPanel.height + Self.dropdownGap
+        return max(0, min((chatHeight / 2).rounded(.down), chatHeight - 50 - top))
+    }
+
+    /// TelegramSwift's: fades over 0.2s while sliding 0.4s on an over-damped spring, which reads as an ease-out.
+    private static func dropdownTransition(reduceMotion: Bool) -> AnyTransition {
+        let fade = AnyTransition.opacity.animation(.easeOut(duration: 0.2))
+        guard !reduceMotion else { return fade }
+        return fade.combined(with: .offset(y: -(SearchPanel.height + dropdownGap)).animation(.smooth(duration: 0.4)))
+    }
+    #endif
+
+    private static let dropdownGap: CGFloat = 6
 
     /// Centers a search result and flashes its bubble, like Telegram. Older results load their page of history first.
     private func jump(to id: UUID) {

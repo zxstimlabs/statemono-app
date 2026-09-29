@@ -26,6 +26,16 @@ enum Theme {
     static let avatarTop = Color(hex: 0xACE1FB)
     static let avatarBottom = Color(hex: 0x74B4F6)
     static let accent = Color(hex: 0x5AA3F0)
+
+    /// Search results on iPhone: Telegram-iOS's dark `chatList` message and date text (#8D8E93) and its separator
+    /// (#545458 at 55%).
+    static let searchListSecondaryText = Color(hex: 0x8D8E93)
+    static let searchListSeparator = Color(hex: 0x545458).opacity(0.55)
+    /// Search results on the Mac: TelegramSwift's night palette. `grayText` for dates, `accentSelect` behind the current
+    /// result, and `border` between rows.
+    static let searchDropdownDate = Color(hex: 0xB1C3D5)
+    static let searchDropdownSelected = Color(hex: 0x3D6A97)
+    static let searchDropdownSeparator = Color(hex: 0x213040)
 }
 
 enum Metrics {

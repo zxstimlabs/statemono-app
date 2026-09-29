@@ -39,22 +39,22 @@ struct DatabaseTests {
         let db = try makeDatabase()
         let vietnamese = try db.insertItem(text: "Đường Nguyễn Huệ ở Sài Gòn", link: nil)
         let github = try db.insertItem(text: "https://github.com/groue/GRDB.swift", link: URL(string: "https://github.com/groue/GRDB.swift"))
-        #expect(try await db.search("duong") == [vietnamese.id])
-        #expect(try await db.search("nguyen hue") == [vietnamese.id])
-        #expect(try await db.search("đường") == [vietnamese.id])
-        #expect(try await db.search("grd") == [github.id])
-        #expect(try await db.search("groue swift") == [github.id])
-        #expect(try await db.search("missing") == [])
-        #expect(try await db.search("   ") == [])
+        #expect(try await db.search("duong").items.map(\.id) == [vietnamese.id])
+        #expect(try await db.search("nguyen hue").items.map(\.id) == [vietnamese.id])
+        #expect(try await db.search("đường").items.map(\.id) == [vietnamese.id])
+        #expect(try await db.search("grd").items.map(\.id) == [github.id])
+        #expect(try await db.search("groue swift").items.map(\.id) == [github.id])
+        #expect(try await db.search("missing").items.isEmpty)
+        #expect(try await db.search("   ") == .empty)
     }
 
     @Test func `search covers preview text and skips deleted items`() async throws {
         let db = try makeDatabase()
         let item = try db.insertItem(text: "https://scriptc.dev/", link: URL(string: "https://scriptc.dev/"))
         try await db.savePreview(LinkPreview(siteName: "scriptc", title: "TypeScript-to-Native Compiler", summary: "Small, fast executables"), for: item.id)
-        #expect(try await db.search("typescript native") == [item.id])
+        #expect(try await db.search("typescript native").items.map(\.id) == [item.id])
         try db.deleteItem(item.id)
-        #expect(try await db.search("typescript") == [])
+        #expect(try await db.search("typescript").items.isEmpty)
     }
 
     @Test func `deleting leaves a tombstone that drops out of the feed`() async throws {

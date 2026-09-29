@@ -3,14 +3,24 @@ import SwiftUI
 /// Round buttons floating over the feed's bottom-trailing corner, in the composer buttons' column. A hidden button's
 /// slot closes, so the one above slides down into it.
 /// - Scroll to the newest message, once the feed is far enough above it.
-/// - iOS only, above it: put the keyboard away while the keyboard is up. Telegram has no such button.
+/// - iOS only, while stepping through search results in the chat: the older and newer result, as in Telegram-iOS. Its
+///   down arrow scrolls to the bottom from the newest result, so it stands in for Scroll to Bottom.
+/// - iOS only, above them: put the keyboard away while the keyboard is up. Telegram has no such button.
 ///
 /// iOS copies Telegram-iOS's `ChatHistoryNavigationButtons`, the Mac TelegramSwift's `ChatNavigationScroller`.
 struct FeedButtons: View {
     var showsScrollToBottom: Bool
     var showsHideKeyboard = false
+    var searchArrows: SearchArrows?
     var onScrollToBottom: () -> Void
     var onHideKeyboard: () -> Void = {}
+
+    struct SearchArrows {
+        var canShowOlder: Bool
+        var onOlder: () -> Void
+        /// The newer result, or the bottom from the newest.
+        var onNewer: () -> Void
+    }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     #if os(macOS)
@@ -35,20 +45,29 @@ struct FeedButtons: View {
                         .foregroundStyle(.white)
                 }
             }
-            if showsScrollToBottom {
-                button("Scroll to Bottom", action: onScrollToBottom) {
-                    // Telegram's chevron: 18×9, sitting 1.5pt below center.
-                    DownChevron()
-                        .stroke(.white, lineWidth: Self.chevronWidth)
-                        .frame(width: 18, height: 9)
-                        .offset(y: 1.5)
-                }
+            if let searchArrows {
+                // Telegram-iOS dims a disabled arrow's icon to half.
+                button("Older Result", action: searchArrows.onOlder) { chevron.rotationEffect(.degrees(180)) }
+                    .disabled(!searchArrows.canShowOlder)
+                    .opacity(searchArrows.canShowOlder ? 1 : 0.5)
+                button("Newer Result", action: searchArrows.onNewer) { chevron }
+            } else if showsScrollToBottom {
+                button("Scroll to Bottom", action: onScrollToBottom) { chevron }
             }
         }
         .animation(Self.animation, value: showsScrollToBottom)
+        .animation(Self.animation, value: searchArrows != nil)
         // The composer's field sits 4pt below the top of its inset.
         .padding(.bottom, Self.gap - 4)
         .padding(.trailing, Metrics.sideMargin)
+    }
+
+    /// Telegram's chevron: 18×9, sitting 1.5pt below center.
+    private var chevron: some View {
+        DownChevron()
+            .stroke(.white, lineWidth: Self.chevronWidth)
+            .frame(width: 18, height: 9)
+            .offset(y: 1.5)
     }
 
     private func button(_ label: LocalizedStringKey, action: @escaping () -> Void, @ViewBuilder icon: () -> some View) -> some View {

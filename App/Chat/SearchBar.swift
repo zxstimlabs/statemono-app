@@ -2,11 +2,15 @@ import SwiftUI
 
 /// The search field in the header. Clicking it starts a search and opens `SearchPanel` below it, and ⌘F toggles the
 /// search. Leaving the field while it's empty closes the search again.
+///
+/// On the Mac, while the results dropdown shows, the arrow keys move its cursor, Return opens the cursor's row, and
+/// Escape clears the cursor before it closes the search.
 struct SearchField: View {
     @Bindable var search: ChatSearch
     var focus: FocusState<ChatFocus?>.Binding
     var onOpen: () -> Void
     var onClose: () -> Void
+    var onOpenResult: (Message.ID) -> Void = { _ in }
     @Environment(\.chatTextSize) private var textSize
 
     var body: some View {
@@ -19,7 +23,24 @@ struct SearchField: View {
                 .font(.system(size: textSize.message))
                 .foregroundStyle(.white)
                 .focused(focus, equals: .search)
-                .onSubmit { search.showOlder() }
+                .onSubmit {
+                    #if os(macOS)
+                    if let cursor = search.cursor, !search.rows.isEmpty {
+                        onOpenResult(cursor)
+                        return
+                    }
+                    #endif
+                    search.showOlder()
+                }
+                #if os(macOS)
+                .onKeyPress(.downArrow) { moveCursor(by: 1) }
+                .onKeyPress(.upArrow) { moveCursor(by: -1) }
+                .onKeyPress(.escape) {
+                    guard search.cursor != nil, !search.rows.isEmpty else { return .ignored }
+                    search.cursor = nil
+                    return .handled
+                }
+                #endif
             if !search.query.isEmpty {
                 Button {
                     search.query = ""
@@ -58,15 +79,32 @@ struct SearchField: View {
             .hidden()
         }
     }
+
+    #if os(macOS)
+    private func moveCursor(by step: Int) -> KeyPress.Result {
+        guard !search.rows.isEmpty else { return .ignored }
+        search.moveCursor(by: step)
+        return .handled
+    }
+    #endif
 }
 
 /// Telegram's in-chat search controls, in a panel under the search field: the result counter, older and newer
-/// result, jump to a date, and close.
+/// result, jump to a date, and close. On iPhone it also switches the results between the chat and a list, as
+/// Telegram-iOS's search panel does (`ChatTagSearchInputPanelNode`), and in list mode the counter reads "M messages".
+/// There, as in Telegram-iOS, the older and newer arrows float over the chat instead (`FeedButtons`).
 struct SearchPanel: View {
     @Bindable var search: ChatSearch
     var dateRange: ClosedRange<Date>
     var onJumpToDate: (Date) -> Void
+    /// Switches between the chat and the results list.
+    var onToggleList: () -> Void = {}
+    /// Called after the arrows move to another result.
+    var onStep: () -> Void = {}
     var onClose: () -> Void
+
+    /// 27.5pt buttons with 4.5pt above and below.
+    static let height: CGFloat = 36.5
 
     @State private var showsCalendar = false
     @State private var calendarDate = Date.now
@@ -74,16 +112,43 @@ struct SearchPanel: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Text(counter)
-                .font(.system(size: textSize.preview))
-                .monospacedDigit()
-                .foregroundStyle(Theme.secondaryText)
-                .lineLimit(1)
-                .padding(.leading, 10)
+            // In list mode, tapping the counter goes back to the chat, as in Telegram-iOS.
+            Button(action: onToggleList) {
+                Text(counter)
+                    .font(.system(size: textSize.preview))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.secondaryText)
+                    .lineLimit(1)
+            }
+            .buttonStyle(.pressFeedback)
+            .disabled(!search.isShowingList || search.results.isEmpty)
+            .padding(.leading, 10)
             Spacer(minLength: 0)
+            #if os(iOS)
+            if !search.results.isEmpty {
+                Button(search.isShowingList ? "Show as Chat" : "Show as List", action: onToggleList)
+                    .font(.system(size: textSize.preview))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .buttonStyle(.pressFeedback)
+                    .padding(.horizontal, 4)
+            }
+            #endif
             HStack(spacing: 0) {
-                iconButton("chevron.up", size: 16, enabled: search.canShowOlder) { search.showOlder() }
-                iconButton("chevron.down", size: 16, enabled: search.canShowNewer) { search.showNewer() }
+                // On iPhone the arrows float over the chat instead, as in Telegram-iOS (`FeedButtons`).
+                #if os(macOS)
+                if !search.isShowingList {
+                    iconButton("chevron.up", size: 16, enabled: search.canShowOlder) {
+                        search.showOlder()
+                        onStep()
+                    }
+                    iconButton("chevron.down", size: 16, enabled: search.canShowNewer) {
+                        search.showNewer()
+                        onStep()
+                    }
+                }
+                #endif
                 iconButton("calendar", size: 16) {
                     calendarDate = min(max(.now, dateRange.lowerBound), dateRange.upperBound)
                     showsCalendar = true
@@ -105,11 +170,15 @@ struct SearchPanel: View {
         .chromeBackground(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    /// "1 of 12" counts back from the newest match, as Telegram does. Nothing until there's a query.
+    /// "1 of 12" counts back from the newest match, as Telegram does, and a list shows "12 messages". Nothing until
+    /// there's a query.
     private var counter: String {
         guard !search.terms.isEmpty else { return "" }
         guard let index = search.currentIndex else { return String(localized: "No results") }
-        return String(localized: "\(search.results.count - index) of \(search.results.count)")
+        if search.isShowingList {
+            return search.results.count == 1 ? String(localized: "1 message") : String(localized: "\(search.results.count) messages")
+        }
+        return String(localized: "\(index + 1) of \(search.results.count)")
     }
 
     private func iconButton(_ systemImage: String, size: CGFloat, enabled: Bool = true, action: @escaping () -> Void) -> some View {
