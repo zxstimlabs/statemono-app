@@ -19,10 +19,20 @@ struct MessageBubble: View {
         )
     }
 
+    /// Between the bubble's edges and its content. The trailing side includes the tail.
+    static let insets = EdgeInsets(top: 7, leading: 10, bottom: 6, trailing: 10 + Metrics.tailWidth)
+
+    private var contentMaxWidth: CGFloat {
+        #if os(macOS)
+        message.preview == nil ? Metrics.textMaxWidth : Metrics.previewWidth
+        #else
+        .infinity
+        #endif
+    }
+
     var body: some View {
-        HStack(spacing: 0) {
-            Spacer(minLength: 56)
-            CappedWidth(max: message.preview == nil ? Metrics.textMaxWidth : Metrics.previewWidth) {
+        BubbleRow {
+            CappedWidth(max: contentMaxWidth) {
                 content
             }
             .overlay(alignment: .topTrailing) {
@@ -30,7 +40,7 @@ struct MessageBubble: View {
                     ReloadButton(isLoading: isLoadingPreview, action: onReloadPreview)
                 }
             }
-            .padding(EdgeInsets(top: 7, leading: 10, bottom: 6, trailing: 10 + Metrics.tailWidth))
+            .padding(Self.insets)
             .background { BubbleFill(shape: shape) }
             .overlay {
                 if isFlashed {
@@ -38,7 +48,6 @@ struct MessageBubble: View {
                 }
             }
         }
-        .padding(.trailing, Metrics.bubbleTrailing)
         .padding(.top, position.isFirstInGroup ? 4 : 2)
     }
 
@@ -157,11 +166,21 @@ private struct LinkPreviewView: View {
 
     /// Telegram's small thumbnail.
     static let thumbnailSide: CGFloat = 54
-    /// A large image spans the preview's width, minus its insets (7 leading, 6 trailing).
-    static let largeImageWidth = Metrics.previewWidth - 13
     @Environment(\.openURL) private var openURL
     @Environment(\.searchTerms) private var searchTerms
     @Environment(\.chatTextSize) private var textSize
+    @Environment(\.feedWidth) private var feedWidth
+
+    /// A large image spans the preview's width, minus its insets (7 leading, 6 trailing).
+    private var largeImageWidth: CGFloat {
+        #if os(macOS)
+        Metrics.previewWidth - 13
+        #else
+        // A preview fills its bubble, which on iOS is as wide as the row allows. Zero until the feed is measured.
+        let bubble = feedWidth - Metrics.bubbleLeadingSpace(rowWidth: feedWidth) - Metrics.bubbleTrailing
+        return max(0, bubble - MessageBubble.insets.leading - MessageBubble.insets.trailing - 13)
+        #endif
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -193,7 +212,7 @@ private struct LinkPreviewView: View {
                     .aspectRatio(aspect, contentMode: .fit)
                     .frame(maxWidth: .infinity)
                     .overlay {
-                        RemoteImage(image: image, size: CGSize(width: Self.largeImageWidth, height: Self.largeImageWidth / aspect))
+                        RemoteImage(image: image, size: CGSize(width: largeImageWidth, height: largeImageWidth / aspect))
                             .id(revision)
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 5))
@@ -215,6 +234,28 @@ private struct LinkPreviewView: View {
         .onTapGesture {
             if let url { openURL(url) }
         }
+    }
+}
+
+/// Puts a bubble at the row's trailing edge, `Metrics.bubbleTrailing` in, leaving at least `Metrics.bubbleLeadingSpace`
+/// beside it. On iOS that room depends on the row's width, which a layout is given; reading it in each bubble would
+/// take a GeometryReader, which the feed can't afford.
+private struct BubbleRow: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.replacingUnspecifiedDimensions().width
+        return CGSize(width: width, height: subviews.first?.sizeThatFits(bubbleProposal(rowWidth: width)).height ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let bubble = subviews.first else { return }
+        let bubbleProposal = bubbleProposal(rowWidth: bounds.width)
+        let width = bubble.sizeThatFits(bubbleProposal).width
+        bubble.place(at: CGPoint(x: bounds.maxX - Metrics.bubbleTrailing - width, y: bounds.minY), proposal: bubbleProposal)
+    }
+
+    private func bubbleProposal(rowWidth: CGFloat) -> ProposedViewSize {
+        let width = rowWidth - Metrics.bubbleLeadingSpace(rowWidth: rowWidth) - Metrics.bubbleTrailing
+        return ProposedViewSize(width: max(0, width), height: nil)
     }
 }
 

@@ -1,0 +1,603 @@
+[
+  {
+    "id" : 1,
+    "siteName" : "Apple",
+    "summary" : "Designed for Apple Intelligence. Discover iPhone Duo, iPhone 18 Pro, iPhone Air, iPhone 17, and iPhone 17e.",
+    "title" : "iPhone",
+    "url" : "https://www.apple.com/iphone/"
+  },
+  {
+    "id" : 2,
+    "siteName" : "Apple",
+    "summary" : "MacBook Air laptop with the superfast M5 chip. Lightweight, with all-day battery life. Built for AI and Apple Intelligence.",
+    "title" : "MacBook Air 13-inch and MacBook Air 15-inch",
+    "url" : "https://www.apple.com/macbook-air/"
+  },
+  {
+    "id" : 3,
+    "siteName" : "Apple",
+    "summary" : "Find the best MacBook Pro for you with the M5, M5 Pro, or M5 Max chip. Built for AI. Up to 24 hours of battery life. Liquid Retina XDR display.",
+    "title" : "MacBook Pro",
+    "url" : "https://www.apple.com/macbook-pro/"
+  },
+  {
+    "id" : 4,
+    "siteName" : "Apple",
+    "summary" : "Featuring the new powerful M5 chip and comfortable Dual Knit Band, Apple Vision Pro seamlessly blends digital content with your physical space.",
+    "title" : "Apple Vision Pro",
+    "url" : "https://www.apple.com/apple-vision-pro/"
+  },
+  {
+    "id" : 5,
+    "siteName" : "Apple",
+    "summary" : "AirPods Pro 3 — The world’s best in-ear Active Noise Cancellation, heart rate sensing during workouts, and an improved hearing health experience.",
+    "title" : "AirPods Pro 3",
+    "url" : "https://www.apple.com/airpods-pro/"
+  },
+  {
+    "id" : 6,
+    "siteName" : "Apple",
+    "summary" : "Apple Watch is the ultimate device for a healthy life. Available in three models: Apple Watch Series 12, Apple Watch Ultra 4, and Apple Watch SE 3.",
+    "title" : "Apple Watch",
+    "url" : "https://www.apple.com/watch/"
+  },
+  {
+    "id" : 7,
+    "siteName" : "Apple",
+    "summary" : "Apple products, including Apple Intelligence, are designed to protect your privacy, because privacy is a fundamental human right.",
+    "title" : "Privacy",
+    "url" : "https://www.apple.com/privacy/"
+  },
+  {
+    "id" : 8,
+    "siteName" : "Apple Newsroom",
+    "summary" : "The official source for news about Apple, from Apple. Read press releases, get updates, watch video and download images.",
+    "title" : "Newsroom",
+    "url" : "https://www.apple.com/newsroom/"
+  },
+  {
+    "id" : 9,
+    "siteName" : "Apple Developer Documentation",
+    "summary" : "Declare the user interface and behavior for your app on every platform.",
+    "title" : "SwiftUI | Apple Developer Documentation",
+    "url" : "https://developer.apple.com/documentation/swiftui"
+  },
+  {
+    "id" : 10,
+    "siteName" : "Apple Developer Documentation",
+    "summary" : "Perform tasks with models that specialize in language understanding, structured output, and tool calling.",
+    "title" : "Foundation Models | Apple Developer Documentation",
+    "url" : "https://developer.apple.com/documentation/foundationmodels"
+  },
+  {
+    "id" : 11,
+    "siteName" : "Apple Developer Documentation",
+    "summary" : "The HIG contains guidance and best practices that can help you design a great experience for any Apple platform.",
+    "title" : "Human Interface Guidelines | Apple Developer Documentation",
+    "url" : "https://developer.apple.com/design/human-interface-guidelines/"
+  },
+  {
+    "id" : 12,
+    "siteName" : "Apple Developer",
+    "summary" : "Join the worldwide developer community online for a week of technology, creativity, and community.",
+    "title" : "WWDC26",
+    "url" : "https://developer.apple.com/wwdc25/"
+  },
+  {
+    "id" : 13,
+    "siteName" : "en.wikipedia.org",
+    "title" : "SQLite - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/SQLite"
+  },
+  {
+    "id" : 14,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Telegram (software) - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Telegram_(software)"
+  },
+  {
+    "id" : 15,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Swift (programming language) - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Swift_(programming_language)"
+  },
+  {
+    "id" : 16,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Levenshtein distance - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Levenshtein_distance"
+  },
+  {
+    "id" : 17,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Espresso - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Espresso"
+  },
+  {
+    "id" : 18,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Sourdough - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Sourdough"
+  },
+  {
+    "id" : 19,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Mount Everest - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Mount_Everest"
+  },
+  {
+    "id" : 20,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Great Barrier Reef - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Great_Barrier_Reef"
+  },
+  {
+    "id" : 21,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Photosynthesis - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Photosynthesis"
+  },
+  {
+    "id" : 22,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Black hole - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Black_hole"
+  },
+  {
+    "id" : 23,
+    "siteName" : "en.wikipedia.org",
+    "title" : "The Beatles - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/The_Beatles"
+  },
+  {
+    "id" : 24,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Marathon - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Marathon"
+  },
+  {
+    "id" : 25,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Stoicism - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Stoicism"
+  },
+  {
+    "id" : 26,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Bitcoin - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Bitcoin"
+  },
+  {
+    "id" : 27,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Large language model - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Large_language_model"
+  },
+  {
+    "id" : 28,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Tokyo - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Tokyo"
+  },
+  {
+    "id" : 29,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Iceland - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Iceland"
+  },
+  {
+    "id" : 30,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Pomodoro Technique - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Pomodoro_Technique"
+  },
+  {
+    "id" : 31,
+    "siteName" : "en.wikipedia.org",
+    "title" : "Mediterranean diet - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/Mediterranean_diet"
+  },
+  {
+    "id" : 32,
+    "siteName" : "en.wikipedia.org",
+    "title" : "James Webb Space Telescope - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/James_Webb_Space_Telescope"
+  },
+  {
+    "id" : 33,
+    "siteName" : "X (formerly Twitter)",
+    "summary" : "just setting up my twttr",
+    "title" : "jack (@jack) on X",
+    "url" : "https://x.com/jack/status/20"
+  },
+  {
+    "id" : 34,
+    "siteName" : "X (formerly Twitter)",
+    "summary" : "Four more years. http://t.co/bAJE6Vom",
+    "title" : "Barack Obama (@BarackObama) on X",
+    "url" : "https://x.com/BarackObama/status/266031293945503744"
+  },
+  {
+    "id" : 35,
+    "siteName" : "X (formerly Twitter)",
+    "summary" : "If only Bradley's arm was longer. Best photo ever. #oscars",
+    "title" : "The Ellen Show (@TheEllenShow) on X",
+    "url" : "https://x.com/TheEllenShow/status/440322224407314432"
+  },
+  {
+    "id" : 36,
+    "siteName" : "X (formerly Twitter)",
+    "summary" : "the bird is freed",
+    "title" : "Elon Musk (@elonmusk) on X",
+    "url" : "https://x.com/elonmusk/status/1585841080431321088"
+  },
+  {
+    "id" : 37,
+    "siteName" : "YouTube",
+    "summary" : "The official video for “Never Gonna Give You Up” by Rick Astley. Never: The Autobiography 📚 OUT NOW! Follow this link to get your copy and listen to Rick’s ...",
+    "title" : "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+    "url" : "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  },
+  {
+    "id" : 38,
+    "siteName" : "YouTube",
+    "summary" : "Microplastics are accumulating in human brains at an alarming ratehttps://www.youtube.com/watch?v=0PT5c1z3LL8“Nanoplastics and Human Health” with Matthew J C...",
+    "title" : "Me at the zoo",
+    "url" : "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+  },
+  {
+    "id" : 39,
+    "siteName" : "YouTube",
+    "summary" : "PSY - ‘I LUV IT’ M/V @ https://youtu.be/Xvjnoagk6GUPSY - ‘New Face’ M/V @https://youtu.be/OwJPPaEyqhIPSY - 8TH ALBUM '4X2=8' on iTunes @https://smarturl.it/P...",
+    "title" : "PSY - GANGNAM STYLE(강남스타일) M/V",
+    "url" : "https://www.youtube.com/watch?v=9bZkp7q19f0"
+  },
+  {
+    "id" : 40,
+    "siteName" : "YouTube",
+    "summary" : "“Despacito” disponible ya en todas las plataformas digitales: https://UMLE.lnk.to/DOoUzFp “Imposible” disponible ya en todas las plataformas digitales: https...",
+    "title" : "Luis Fonsi - Despacito ft. Daddy Yankee",
+    "url" : "https://www.youtube.com/watch?v=kJQP7kiw5Fk"
+  },
+  {
+    "id" : 41,
+    "siteName" : "YouTube",
+    "summary" : "Drawing from some of the most pivotal points in his life, Steve Jobs, chief executive officer and co-founder of Apple Computer and of Pixar Animation Studios...",
+    "title" : "Steve Jobs' 2005 Stanford Commencement Address",
+    "url" : "https://www.youtube.com/watch?v=UF8uR6Z6KLc"
+  },
+  {
+    "id" : 42,
+    "siteName" : "YouTube",
+    "summary" : "Tim Urban knows that procrastination doesn't make sense, but he's never been able to shake his habit of waiting until the last minute to get things done. In ...",
+    "title" : "Inside the Mind of a Master Procrastinator | Tim Urban | TED",
+    "url" : "https://www.youtube.com/watch?v=arj7oStGLkU"
+  },
+  {
+    "id" : 43,
+    "siteName" : "GitHub",
+    "summary" : "A toolkit for SQLite databases, with a focus on application development - groue/GRDB.swift",
+    "title" : "GitHub - groue/GRDB.swift: A toolkit for SQLite databases, with a focus on application development",
+    "url" : "https://github.com/groue/GRDB.swift"
+  },
+  {
+    "id" : 44,
+    "siteName" : "GitHub",
+    "summary" : "Source code of Telegram for macos on Swift 5.0. Contribute to overtake/TelegramSwift development by creating an account on GitHub.",
+    "title" : "GitHub - overtake/TelegramSwift: Source code of Telegram for macos on Swift 5.0",
+    "url" : "https://github.com/overtake/TelegramSwift"
+  },
+  {
+    "id" : 45,
+    "siteName" : "GitHub",
+    "summary" : "Telegram-iOS. Contribute to TelegramMessenger/Telegram-iOS development by creating an account on GitHub.",
+    "title" : "GitHub - TelegramMessenger/Telegram-iOS: Telegram-iOS",
+    "url" : "https://github.com/TelegramMessenger/Telegram-iOS"
+  },
+  {
+    "id" : 46,
+    "siteName" : "GitHub",
+    "summary" : "The Swift Programming Language. Contribute to swiftlang/swift development by creating an account on GitHub.",
+    "title" : "GitHub - swiftlang/swift: The Swift Programming Language",
+    "url" : "https://github.com/swiftlang/swift"
+  },
+  {
+    "id" : 47,
+    "siteName" : "GitHub",
+    "summary" : "A library for building applications in a consistent and understandable way, with composition, testing, and ergonomics in mind. - pointfreeco/swift-composable-architecture",
+    "title" : "GitHub - pointfreeco/swift-composable-architecture: A library for building applications in a consistent and understandable way, with composition, testing, and ergonomics in mind.",
+    "url" : "https://github.com/pointfreeco/swift-composable-architecture"
+  },
+  {
+    "id" : 48,
+    "siteName" : "GitHub",
+    "summary" : "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models. - ollama/ollama",
+    "title" : "GitHub - ollama/ollama: Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
+    "url" : "https://github.com/ollama/ollama"
+  },
+  {
+    "id" : 49,
+    "siteName" : "GitHub",
+    "summary" : "LLM inference in C/C++. Contribute to ggml-org/llama.cpp development by creating an account on GitHub.",
+    "title" : "GitHub - ggml-org/llama.cpp: LLM inference in C/C++",
+    "url" : "https://github.com/ggml-org/llama.cpp"
+  },
+  {
+    "id" : 50,
+    "siteName" : "GitHub",
+    "summary" : "Official Git mirror of the SQLite source tree. Contribute to sqlite/sqlite development by creating an account on GitHub.",
+    "title" : "GitHub - sqlite/sqlite: Official Git mirror of the SQLite source tree",
+    "url" : "https://github.com/sqlite/sqlite"
+  },
+  {
+    "id" : 51,
+    "siteName" : "GitHub",
+    "summary" : "Linux kernel source tree. Contribute to torvalds/linux development by creating an account on GitHub.",
+    "title" : "GitHub - torvalds/linux: Linux kernel source tree",
+    "url" : "https://github.com/torvalds/linux"
+  },
+  {
+    "id" : 52,
+    "siteName" : "GitHub",
+    "summary" : "Beautiful, Modern & Opinionated Linux. Contribute to omacom/omarchy development by creating an account on GitHub.",
+    "title" : "GitHub - omacom/omarchy: Beautiful, Modern & Opinionated Linux",
+    "url" : "https://github.com/basecamp/omarchy"
+  },
+  {
+    "id" : 53,
+    "siteName" : "GitHub",
+    "summary" : "Hyprland is an independent, highly customizable, dynamic tiling Wayland compositor that doesn't sacrifice on its looks. - hyprwm/Hyprland",
+    "title" : "GitHub - hyprwm/Hyprland: Hyprland is an independent, highly customizable, dynamic tiling Wayland compositor that doesn't sacrifice on its looks.",
+    "url" : "https://github.com/hyprwm/Hyprland"
+  },
+  {
+    "id" : 54,
+    "siteName" : "GitHub",
+    "summary" : "Open Source realtime backend in 1 file. Contribute to pocketbase/pocketbase development by creating an account on GitHub.",
+    "title" : "GitHub - pocketbase/pocketbase: Open Source realtime backend in 1 file",
+    "url" : "https://github.com/pocketbase/pocketbase"
+  },
+  {
+    "id" : 55,
+    "siteName" : "sqlite.org",
+    "title" : "SQLite FTS5 Extension",
+    "url" : "https://www.sqlite.org/fts5.html"
+  },
+  {
+    "id" : 56,
+    "siteName" : "MDN Web Docs",
+    "summary" : "JavaScript (JS) is a lightweight interpreted (or just-in-time compiled) programming language with first-class functions. While it is most well-known as the scripting language for Web pages, many non-browser environments also use it, such as Node.js, Apache CouchDB and Adobe Acrobat. JavaScript is a prototype-based, garbage-collected, dynamic language, supporting multiple paradigms such as imperative, functional, and object-oriented.",
+    "title" : "JavaScript | MDN",
+    "url" : "https://developer.mozilla.org/en-US/docs/Web/JavaScript"
+  },
+  {
+    "id" : 57,
+    "siteName" : "doc.rust-lang.org",
+    "title" : "The Rust Programming Language - The Rust Programming Language",
+    "url" : "https://doc.rust-lang.org/book/"
+  },
+  {
+    "id" : 58,
+    "siteName" : "martinfowler.com",
+    "summary" : "Defining the microservices architectural style by describing their nine common characteristics",
+    "title" : "Microservices",
+    "url" : "https://martinfowler.com/articles/microservices.html"
+  },
+  {
+    "id" : 59,
+    "siteName" : "paulgraham.com",
+    "title" : "Beating the Averages",
+    "url" : "https://paulgraham.com/avg.html"
+  },
+  {
+    "id" : 60,
+    "siteName" : "paulgraham.com",
+    "title" : "How to Get Startup Ideas",
+    "url" : "https://paulgraham.com/startupideas.html"
+  },
+  {
+    "id" : 61,
+    "siteName" : "Joel on Software",
+    "summary" : "Have you ever heard of SEMA? It’s a fairly esoteric system for measuring how good a software team is. No, wait! Don’t follow that link! It will take you about six years just to understa…",
+    "title" : "The Joel Test: 12 Steps to Better Code",
+    "url" : "https://www.joelonsoftware.com/2000/08/09/the-joel-test-12-steps-to-better-code/"
+  },
+  {
+    "id" : 62,
+    "siteName" : "Hacking with Swift",
+    "summary" : "Follow the 100 Days of SwiftUI and learn to build apps for free.",
+    "title" : "The 100 Days of SwiftUI",
+    "url" : "https://www.hackingwithswift.com/100/swiftui"
+  },
+  {
+    "id" : 63,
+    "siteName" : "tailscale.com",
+    "summary" : "A great, free remote access tool, made secure and easy with Tailscale.",
+    "title" : "Tailscale and RustDesk: Secure remote access to all your desktops",
+    "url" : "https://tailscale.com/blog/tailscale-rustdesk-remote-desktop-access"
+  },
+  {
+    "id" : 64,
+    "siteName" : "news.ycombinator.com",
+    "title" : "Hacker News",
+    "url" : "https://news.ycombinator.com/"
+  },
+  {
+    "id" : 65,
+    "siteName" : "letterboxd.com",
+    "summary" : "Imprisoned in the 1940s for the double murder of his wife and her lover, upstanding banker Andy Dufresne begins a new life at the Shawshank prison, where he puts his accounting skills to work for an amoral warden. During his long stretch in prison, Dufresne comes to be admired by the other inmates -- including an older prisoner named Red -- for his integrity and unquenchable sense of hope.",
+    "title" : "The Shawshank Redemption (1994)",
+    "url" : "https://letterboxd.com/film/the-shawshank-redemption/"
+  },
+  {
+    "id" : 66,
+    "siteName" : "letterboxd.com",
+    "summary" : "The adventures of a group of explorers who make use of a newly discovered wormhole to surpass the limitations on human space travel and conquer the vast distances involved in an interstellar voyage.",
+    "title" : "Interstellar (2014)",
+    "url" : "https://letterboxd.com/film/interstellar/"
+  },
+  {
+    "id" : 67,
+    "siteName" : "netflix.com",
+    "summary" : "When a young boy vanishes, a small town uncovers a mystery involving secret experiments, terrifying supernatural forces and one strange little girl.",
+    "title" : "Watch Stranger Things | Netflix Official Site",
+    "url" : "https://www.netflix.com/title/80057281"
+  },
+  {
+    "id" : 68,
+    "siteName" : "Spotify",
+    "title" : "Spotify – Web Player",
+    "url" : "https://open.spotify.com/artist/3WrFJ7ztbogyGnTHbHJFl2"
+  },
+  {
+    "id" : 69,
+    "siteName" : "thinkwithportals.com",
+    "summary" : "Information about Valve's Portal 2, including trailers, screenshots and preorders.",
+    "title" : "Official Portal 2 Website",
+    "url" : "https://www.thinkwithportals.com/"
+  },
+  {
+    "id" : 70,
+    "siteName" : "supergiantgames.com",
+    "summary" : "Supergiant Games is an independent game development studio in San Francisco, known for its award-winning titles Hades and Hades II, Pyre, Transistor, and Bastion.",
+    "title" : "Supergiant Games",
+    "url" : "https://supergiantgames.com/games/hades/"
+  },
+  {
+    "id" : 71,
+    "siteName" : "en.wikipedia.org",
+    "title" : "The Hobbit - Wikipedia",
+    "url" : "https://en.wikipedia.org/wiki/The_Hobbit"
+  },
+  {
+    "id" : 72,
+    "siteName" : "ted.com",
+    "summary" : "Sir Ken Robinson makes an entertaining and profoundly moving case for creating an education system that nurtures (rather than undermines) creativity.",
+    "title" : "Do schools kill creativity?",
+    "url" : "https://www.ted.com/talks/sir_ken_robinson_do_schools_kill_creativity"
+  },
+  {
+    "id" : 73,
+    "siteName" : "nytimes.com",
+    "summary" : "Guess the hidden word in 6 tries. A new puzzle is available each day.",
+    "title" : "Wordle - A daily word game",
+    "url" : "https://www.nytimes.com/games/wordle/index.html"
+  },
+  {
+    "id" : 74,
+    "siteName" : "theguardian.com",
+    "summary" : "Latest international news, sport and comment from the Guardian",
+    "title" : "Latest news, sport and opinion from the Guardian",
+    "url" : "https://www.theguardian.com/international"
+  },
+  {
+    "id" : 75,
+    "siteName" : "NYT Cooking",
+    "summary" : "You may have memorized the foolproof gem on the back of the Toll House bag, given to the world by Ruth Graves Wakefield in the 1930s. But this may become your new favorite chocolate chip cookie recipe.",
+    "title" : "Best Chocolate Chip Cookies Recipe • 5★",
+    "url" : "https://cooking.nytimes.com/recipes/1015819-chocolate-chip-cookies"
+  },
+  {
+    "id" : 76,
+    "siteName" : "IKEA",
+    "summary" : "The BILLY bookcase is a timeless storage solution with adjustable shelves to fit books, decor and more. Shop BILLY bookshelves at IKEA.",
+    "title" : "BILLY Bookcases & Bookshelves",
+    "url" : "https://www.ikea.com/us/en/p/billy-bookcase-white-00263850/"
+  },
+  {
+    "id" : 77,
+    "siteName" : "nps.gov",
+    "summary" : "Not just a great valley, but a shrine to human foresight, the strength of granite, the power of glaciers, the persistence of life, and the tranquility of the High Sierra. First protected in 1864, Yosemite National Park is best known for its waterfalls, but within its nearly 1,200 square miles, you can find deep valleys, grand meadows, ancient giant sequoias, a vast wilderness area, and much more.",
+    "title" : "Yosemite National Park (U.S. National Park Service)",
+    "url" : "https://www.nps.gov/yose/index.htm"
+  },
+  {
+    "id" : 78,
+    "siteName" : "Lonely Planet",
+    "summary" : "Explore Japan holidays and discover the best time and places to visit.",
+    "title" : "Japan travel",
+    "url" : "https://www.lonelyplanet.com/japan"
+  },
+  {
+    "id" : 79,
+    "siteName" : "Airbnb",
+    "summary" : "Get an Airbnb for every kind of trip → 8 million vacation rentals → 2 million Guest Favorites → 220+ countries and regions worldwide",
+    "title" : "Airbnb | Vacation rentals, cabins, beach houses, & more",
+    "url" : "https://www.airbnb.com/"
+  },
+  {
+    "id" : 80,
+    "siteName" : "reddit.com",
+    "title" : "Reddit",
+    "url" : "https://www.reddit.com/r/swift/"
+  },
+  {
+    "id" : 81,
+    "siteName" : "Duolingo",
+    "summary" : "Learn languages by playing a game. It's 100% free, fun, and scientifically proven to work.",
+    "title" : "Learn a language for free",
+    "url" : "https://www.duolingo.com/"
+  },
+  {
+    "id" : 82,
+    "siteName" : "Strava",
+    "summary" : "Strava connects millions of runners, cyclists, hikers, walkers and other active people through the sports they love – all on our mobile app and website.",
+    "title" : "Strava | Running, Cycling & Hiking App - Train, Track & Share",
+    "url" : "https://www.strava.com/"
+  },
+  {
+    "id" : 83,
+    "siteName" : "Figma",
+    "summary" : "Figma is the canvas where design, code, and AI come together. From first idea to shipped product — go from concept to production with your whole team, in one place.",
+    "title" : "Figma: The collaborative canvas for design, code, and AI",
+    "url" : "https://www.figma.com/"
+  },
+  {
+    "id" : 84,
+    "siteName" : "linear.app",
+    "summary" : "Purpose-built for planning and building products with AI agents.",
+    "title" : "Linear – The system for product development",
+    "url" : "https://linear.app/"
+  },
+  {
+    "id" : 85,
+    "siteName" : "raycast.com",
+    "summary" : "A collection of powerful productivity tools all within an extendable launcher.",
+    "title" : "Raycast - Your shortcut to everything",
+    "url" : "https://www.raycast.com/"
+  },
+  {
+    "id" : 86,
+    "siteName" : "Obsidian",
+    "summary" : "The free and flexible app for your private thoughts.",
+    "title" : "Obsidian - Sharpen your thinking",
+    "url" : "https://obsidian.md/"
+  },
+  {
+    "id" : 87,
+    "siteName" : "Notion",
+    "summary" : "Build Custom Agents, search across all your apps, and automate busywork. The AI workspace where teams get more done, faster.",
+    "title" : "The AI workspace that works for you. | Notion",
+    "url" : "https://www.notion.com/"
+  },
+  {
+    "id" : 88,
+    "siteName" : "anthropic.com",
+    "summary" : "Anthropic is an AI safety and research company that's working to build reliable, interpretable, and steerable AI systems.",
+    "title" : "Home \\ Anthropic",
+    "url" : "https://www.anthropic.com/"
+  },
+  {
+    "id" : 89,
+    "siteName" : "ChatGPT",
+    "summary" : "ChatGPT helps you get answers, find inspiration, and be more productive.",
+    "url" : "https://chatgpt.com/"
+  },
+  {
+    "id" : 90,
+    "siteName" : "tailscale.com",
+    "summary" : "The connectivity platform for devs, IT, and security teams. Zero Trust identity-based access that deploys in minutes and scales to every resource. Start free.",
+    "title" : "Tailscale | Secure Connectivity for AI, IoT & Multi-Cloud",
+    "url" : "https://tailscale.com/"
+  }
+]

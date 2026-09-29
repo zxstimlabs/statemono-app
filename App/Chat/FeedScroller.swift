@@ -12,30 +12,39 @@ import SwiftUI
 /// - Content that grows while the feed sits at the bottom, like a link preview arriving, is followed down. If the user
 ///   is reading further up, it's left alone.
 /// - Anything else moving the scroll view, like the user's trackpad, cancels the animation. Reduce Motion skips it.
+/// - It tells the scroll-to-bottom button when to show, and glides for it.
 @MainActor
+@Observable
 final class FeedScroller: NSObject {
     static let contentSpace = "feedContent"
     /// Close to Telegram's 0.2s ease-out: about 95% there after 0.19s.
     static let sendResponse: CGFloat = 0.25
     static let jumpResponse: CGFloat = 0.4
+    /// TelegramSwift hides the scroll-to-bottom button within 80pt of the newest message.
+    static let awayDistance: CGFloat = 80
+
+    /// Whether the feed is heading `awayDistance` or more above the newest message. Measured from where a glide is
+    /// going, not where it is, so sliding down to a sent message or a new preview doesn't flash the button.
+    private(set) var isAwayFromBottom = false
 
     /// Row frames in the feed's content space, by `FeedItem.id`. Rows report them as they're laid out.
-    var rowFrames: [String: CGRect] = [:]
+    @ObservationIgnored var rowFrames: [String: CGRect] = [:]
 
-    fileprivate weak var scrollView: NSScrollView?
-    fileprivate weak var contentAnchor: NSView?
+    @ObservationIgnored fileprivate weak var scrollView: NSScrollView?
+    @ObservationIgnored fileprivate weak var contentAnchor: NSView?
 
-    private var documentObserver: NSObjectProtocol?
-    private var knownDocumentHeight: CGFloat?
-    private var heightBeforeInsert: CGFloat?
-    private var heightBeforePrepend: CGFloat?
+    @ObservationIgnored private var documentObserver: NSObjectProtocol?
+    @ObservationIgnored private var boundsObserver: NSObjectProtocol?
+    @ObservationIgnored private var knownDocumentHeight: CGFloat?
+    @ObservationIgnored private var heightBeforeInsert: CGFloat?
+    @ObservationIgnored private var heightBeforePrepend: CGFloat?
     /// A jump to a row that hasn't been laid out yet, such as one in a page of history that's still loading.
-    private var pendingJump: (id: String, anchor: UnitPoint)?
-    private var framesWaitingForJump = 0
-    private var framesWaitingForInsert = 0
-    private var spring: Spring?
-    private var displayLink: CADisplayLink?
-    private var lastSetY: CGFloat?
+    @ObservationIgnored private var pendingJump: (id: String, anchor: UnitPoint)?
+    @ObservationIgnored private var framesWaitingForJump = 0
+    @ObservationIgnored private var framesWaitingForInsert = 0
+    @ObservationIgnored private var spring: Spring?
+    @ObservationIgnored private var displayLink: CADisplayLink?
+    @ObservationIgnored private var lastSetY: CGFloat?
 
     private var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
 
@@ -45,6 +54,7 @@ final class FeedScroller: NSObject {
         heightBeforeInsert = documentView.frame.height
         framesWaitingForInsert = 0
         startDisplayLink()
+        updateAwayFromBottom()
     }
 
     /// Call right before older messages load above what's shown. What's on screen stays where it is.
@@ -86,6 +96,25 @@ final class FeedScroller: NSObject {
         return true
     }
 
+    /// Glides to the newest message, for the scroll-to-bottom button. Long jumps first snap to one screen away.
+    func scrollToBottom() {
+        guard let scrollView else { return }
+        pendingJump = nil
+        let clip = scrollView.contentView
+        let target = clamped(.greatestFiniteMagnitude, in: clip)
+        if reduceMotion {
+            stop()
+            set(target)
+            return
+        }
+        let insets = scrollView.contentInsets
+        let visibleHeight = clip.bounds.height - insets.top - insets.bottom
+        if spring == nil, target - clip.bounds.minY > visibleHeight {
+            set(target - visibleHeight)
+        }
+        animate(to: target, response: Self.jumpResponse)
+    }
+
     /// Where a mouse event landed in the feed's content space, where `rowFrames` are. Nil if it landed on something
     /// over the feed instead, like the header, the composer or the search panel.
     func contentPoint(of event: NSEvent) -> CGPoint? {
@@ -109,7 +138,17 @@ final class FeedScroller: NSObject {
         self.scrollView = scrollView
         self.contentAnchor = contentAnchor
         if let documentObserver { NotificationCenter.default.removeObserver(documentObserver) }
+        if let boundsObserver { NotificationCenter.default.removeObserver(boundsObserver) }
         documentObserver = nil
+        boundsObserver = nil
+        if let clip = scrollView?.contentView {
+            clip.postsBoundsChangedNotifications = true
+            boundsObserver = NotificationCenter.default.addObserver(
+                forName: NSView.boundsDidChangeNotification, object: clip, queue: nil
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.updateAwayFromBottom() }
+            }
+        }
         guard let documentView = scrollView?.documentView else { return }
         documentView.postsFrameChangedNotifications = true
         knownDocumentHeight = documentView.frame.height
@@ -124,7 +163,10 @@ final class FeedScroller: NSObject {
     private func documentDidResize() {
         guard let scrollView, let documentView = scrollView.documentView, documentView.isFlipped else { return }
         let height = documentView.frame.height
-        defer { knownDocumentHeight = height }
+        defer {
+            knownDocumentHeight = height
+            updateAwayFromBottom()
+        }
         // Older messages went in above: shift by the added height so the visible ones don't move.
         if let before = heightBeforePrepend {
             heightBeforePrepend = nil
@@ -172,6 +214,7 @@ final class FeedScroller: NSObject {
         let state = currentState(at: now)
         spring = Spring(target: target, from: state.value, velocity: state.velocity, start: now, response: response)
         startDisplayLink()
+        updateAwayFromBottom()
     }
 
     /// Where the scroll view is heading: the running spring's state, or where it sits now.
@@ -247,6 +290,18 @@ final class FeedScroller: NSObject {
         lastSetY = nil
         heightBeforeInsert = nil
         pendingJump = nil
+        updateAwayFromBottom()
+    }
+
+    // MARK: - Scroll-to-bottom button
+
+    private func updateAwayFromBottom() {
+        guard let scrollView else { return }
+        let clip = scrollView.contentView
+        // A send slides down to its row once it's laid out.
+        let heading = heightBeforeInsert == nil ? spring?.target ?? clip.bounds.minY : nil
+        let isAway = heading.map { clamped(.greatestFiniteMagnitude, in: clip) - $0 >= Self.awayDistance } ?? false
+        if isAway != isAwayFromBottom { isAwayFromBottom = isAway }
     }
 }
 

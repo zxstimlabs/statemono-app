@@ -11,14 +11,14 @@ struct ChatView: View {
     @State private var scrollRequest: ScrollRequest?
     /// The oldest message's date, read when search opens, so the calendar can reach back through all history.
     @State private var oldestDate: Date?
-    #if !os(macOS)
-    @State private var scrollsToNewMessage = false
-    #endif
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if os(iOS)
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    /// Whether the software keyboard is up. The button that puts it away rides on top of it.
+    @State private var feedFollower = FeedFollower()
+    /// Whether the software keyboard is up, which brings up the button that puts it away.
     @State private var isKeyboardShown = false
+    /// How wide the feed's rows are. Bubbles are laid out from it directly (`BubbleRow`); this copy sizes preview images.
+    @State private var feedWidth: CGFloat = 0
     #endif
     #if os(macOS)
     @State private var scroller = FeedScroller()
@@ -30,27 +30,28 @@ struct ChatView: View {
 
     var body: some View {
         feed
+        // Messages fade out as they scroll behind the header or the composer.
+        .overlay { FeedEdgeFade(edge: .top) }
+        .overlay { FeedEdgeFade(edge: .bottom) }
+        // Over the feed's bottom-trailing corner, so they ride on top of the composer and keyboard without insetting.
+        .overlay(alignment: .bottomTrailing) {
+            #if os(macOS)
+            FeedButtons(showsScrollToBottom: scroller.isAwayFromBottom, onScrollToBottom: scroller.scrollToBottom)
+            #else
+            FeedButtons(
+                showsScrollToBottom: feedFollower.isAwayFromBottom,
+                showsHideKeyboard: isKeyboardShown,
+                onScrollToBottom: feedFollower.scrollToBottom,
+                onHideKeyboard: { focus = nil }
+            )
+            #endif
+        }
         .safeAreaInset(edge: .top, spacing: 0) {
             ChatHeader(leadingInset: headerLeadingInset, search: search, focus: $focus, onOpenSearch: openSearch, onCloseSearch: closeSearch)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 0) {
-                Composer(text: $draft, focus: $focus, onAttach: { setAttachMenu(shown: true) }, onSend: send)
-                    .padding(.top, 4)
-                #if os(iOS)
-                // Revealed by a growing clip, so it rises out of the keyboard's top edge.
-                HideKeyboardButton { focus = nil }
-                    .frame(height: isKeyboardShown ? nil : 0, alignment: .bottom)
-                    .clipped()
-                    .allowsHitTesting(isKeyboardShown)
-                    .accessibilityHidden(!isKeyboardShown)
-                #endif
-            }
-            #if os(iOS)
-            // The keyboard moves this inset as one piece. Without the group, the row under the composer skipped
-            // the keyboard's animation, jumped to its final spot, and showed over the feed while the composer rose.
-            .geometryGroup()
-            #endif
+            Composer(text: $draft, focus: $focus, onAttach: { setAttachMenu(shown: true) }, onSend: send)
+                .padding(.top, 4)
         }
         // Drops out of the header's search field and floats over the feed, instead of insetting it.
         .overlay(alignment: .top) {
@@ -58,7 +59,10 @@ struct ChatView: View {
                 SearchPanel(search: search, dateRange: dateRange, onJumpToDate: jump(toDay:), onClose: closeSearch)
                     .padding(.leading, headerLeadingInset + Metrics.chromeHeight + Metrics.chromeSpacing)
                     .padding(.trailing, Metrics.sideMargin + Metrics.chromeHeight + Metrics.chromeSpacing)
-                    .padding(.top, Metrics.headerTop + Metrics.chromeHeight + Metrics.chromeSpacing)
+                    // Keeps its gap under the search field's glass, which grows while the field has focus.
+                    .padding(.top, Metrics.headerTop + Metrics.chromeHeight + Metrics.chromeSpacing
+                        + (focus == .search ? Metrics.focusGrowth : 0))
+                    .animation(Metrics.focusAnimation, value: focus == .search)
                     .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: -8)))
             }
         }
@@ -101,13 +105,6 @@ struct ChatView: View {
         .onChange(of: search.current) { _, id in
             if let id { jump(to: id) }
         }
-        #if !os(macOS)
-        .onChange(of: store.messages.last?.id) { _, id in
-            guard scrollsToNewMessage, let id else { return }
-            scrollsToNewMessage = false
-            scroll(to: id.uuidString, anchor: .bottom)
-        }
-        #endif
         // Telegram's confirmation for deleting a message in Saved Messages.
         .alert("This action can't be undone", isPresented: isConfirmingDelete, presenting: pendingDelete) { id in
             Button("Delete", role: .destructive) { store.delete(id) }
@@ -118,11 +115,12 @@ struct ChatView: View {
         .environment(\.searchTerms, search.isActive ? search.terms : [])
         #if os(iOS)
         .environment(\.chatTextSize, ChatTextSize(dynamicTypeSize))
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
-            withAnimation(.keyboard(note)) { isKeyboardShown = true }
+        .environment(\.feedWidth, feedWidth)
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            isKeyboardShown = true
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
-            withAnimation(.keyboard(note)) { isKeyboardShown = false }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            isKeyboardShown = false
         }
         #endif
         // Also under the keyboard, which shows the app behind its rounded top corners.
@@ -165,6 +163,8 @@ struct ChatView: View {
                             guard visible else { return }
                             #if os(macOS)
                             scroller.willPrepend()
+                            #else
+                            feedFollower.willPrepend()
                             #endif
                             store.loadOlder()
                         }
@@ -215,6 +215,9 @@ struct ChatView: View {
             #if os(macOS)
             .coordinateSpace(.named(FeedScroller.contentSpace))
             .background(FeedScrollerAnchor(scroller: scroller))
+            #else
+            .background(FeedFollowerAnchor(follower: feedFollower))
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { feedWidth = $0 }
             #endif
         }
         // No `.scrollPosition` binding: it holds on to its last value and snaps back to it, undoing jumps.
@@ -223,6 +226,9 @@ struct ChatView: View {
         .defaultScrollAnchor(.bottom, for: .initialOffset)
         .defaultScrollAnchor(.bottom, for: .alignment)
         #if os(iOS)
+        .onScrollGeometryChange(for: ScrollGeometry.self, of: { $0 }) { _, geometry in
+            feedFollower.update(contentHeight: geometry.contentSize.height)
+        }
         // As in Telegram-iOS, a tap anywhere in the feed puts the keyboard away: beside a bubble, on one, or above them.
         .simultaneousGesture(TapGesture().onEnded { focus = nil }, isEnabled: focus != nil)
         #endif
@@ -284,6 +290,8 @@ struct ChatView: View {
         guard !store.messages.contains(where: { $0.id == id }) else { return }
         #if os(macOS)
         scroller.willPrepend()
+        #else
+        feedFollower.willPrepend()
         #endif
         store.ensureLoaded(id)
     }
@@ -354,13 +362,11 @@ struct ChatView: View {
         guard !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         #if os(macOS)
         scroller.willInsert()
+        #else
+        feedFollower.willInsert()
         #endif
         store.send(draft)
         draft = ""
-        #if !os(macOS)
-        // The new message arrives from the database a moment later; scroll when it does.
-        scrollsToNewMessage = true
-        #endif
     }
 }
 
@@ -406,13 +412,3 @@ extension EnvironmentValues {
     /// Folded search terms to highlight in bubbles; empty when search is closed.
     @Entry var searchTerms: [String] = []
 }
-
-#if os(iOS)
-private extension Animation {
-    /// Close to the keyboard's own motion: the duration it reports, with no bounce.
-    static func keyboard(_ note: Notification) -> Animation {
-        let duration = note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0.25
-        return .smooth(duration: duration)
-    }
-}
-#endif

@@ -56,7 +56,8 @@ struct RemoteImage: View {
             loaded = visible ? loaded ?? PreviewImageLoader.shared.cachedImage(for: image.url) : nil
         }
         .task(id: LoadKey(url: image.url, isVisible: isVisible, pixelSize: pixelSize)) {
-            guard isVisible else { return }
+            // No size yet: on iOS the feed hasn't been measured.
+            guard isVisible, pixelSize > 0 else { return }
             if let loaded, max(loaded.width, loaded.height) >= pixelSize { return }
             let loader = PreviewImageLoader.shared
             if !loader.isStored(image.url) {

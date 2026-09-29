@@ -34,15 +34,41 @@ enum Metrics {
     static let sideMargin: CGFloat = 10
     static let headerTop: CGFloat = 6
     static let composerBottom: CGFloat = 8
+    /// How far a text field's glass grows above and below it while the field has focus: 36pt becomes 42pt.
+    static let focusGrowth: CGFloat = 3
+    /// The glass growing into focus, or back.
+    static let focusAnimation = Animation.smooth(duration: 0.25)
 
     static let bubbleRadius: CGFloat = 16
     static let groupedRadius: CGFloat = 6
     /// Room reserved on the trailing side of every bubble for the tail, drawn or not.
     static let tailWidth: CGFloat = 6
+    /// From a bubble's tail room to the row's trailing edge. Telegram-iOS's bubble ends 10pt from the edge: its frame
+    /// sits 3pt in, and the drawn bubble stops 7pt inside the frame, before the tail.
+    #if os(macOS)
     static let bubbleTrailing: CGFloat = 11
+    #else
+    static let bubbleTrailing: CGFloat = 10 - tailWidth
+    #endif
+    /// The Mac's widest bubble content: text, or a link preview. On iOS only the row limits it (`bubbleLeadingSpace`).
     static let textMaxWidth: CGFloat = 400
     static let previewWidth: CGFloat = 282
     static let menuRadius: CGFloat = 18
+
+    /// The least room a bubble leaves on its leading side in a row `rowWidth` wide.
+    static func bubbleLeadingSpace(rowWidth: CGFloat) -> CGFloat {
+        #if os(macOS)
+        56
+        #else
+        // Telegram-iOS (`ChatMessageItemWidthFill`, `ChatMessageBubbleItemNode`) gives a bubble the row less 36pt when
+        // the row is up to 500pt wide, and 85% of it past that, 65% once the chat is wider than 680pt. Telegram checks
+        // 680 against the whole width, safe areas included; on every iPhone the row lands on the same side of it.
+        // Of that, the bubble's frame gets all but 9pt, 3pt from the trailing edge, and the drawn bubble starts 1pt
+        // inside the frame. On a phone held upright, bubbles reach 43pt from the left edge.
+        let fill = rowWidth <= 500 ? rowWidth - 36 : floor(rowWidth * (rowWidth > 680 ? 0.65 : 0.85))
+        return rowWidth - fill + 7
+        #endif
+    }
 }
 
 /// Text sizes in the chat. The Mac keeps the sizes measured from Telegram for macOS. On iOS they follow Telegram-iOS
@@ -83,6 +109,8 @@ extension ChatTextSize {
 
 extension EnvironmentValues {
     @Entry var chatTextSize = ChatTextSize.mac
+    /// The width of the feed's rows. On iOS, a link preview's image is decoded to fit the bubble it allows.
+    @Entry var feedWidth: CGFloat = 0
 }
 
 extension Color {
@@ -96,14 +124,16 @@ extension Color {
 }
 
 extension View {
-    /// The floating-glass look shared by the header and composer pieces.
-    func chromeBackground<S: InsettableShape>(_ shape: S) -> some View {
+    /// The floating-glass look shared by the header and composer pieces. `outset` draws the glass that much beyond
+    /// the view's top and bottom edges without changing its layout.
+    func chromeBackground<S: InsettableShape>(_ shape: S, outset: CGFloat = 0) -> some View {
         background {
             ZStack {
                 shape.fill(.ultraThinMaterial)
                 shape.fill(Theme.chromeFill)
                 shape.strokeBorder(Theme.chromeBorder, lineWidth: 0.5)
             }
+            .padding(.vertical, -outset)
         }
     }
 }

@@ -11,6 +11,10 @@ struct Composer: View {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private var isFocused: Bool {
+        focus.wrappedValue == .composer
+    }
+
     var body: some View {
         HStack(alignment: .bottom, spacing: Metrics.chromeSpacing) {
             circleButton(action: onAttach) {
@@ -29,7 +33,13 @@ struct Composer: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
                 .frame(minHeight: Metrics.chromeHeight)
-                .chromeBackground(RoundedRectangle(cornerRadius: Metrics.chromeHeight / 2))
+                // The glass grows a little around the field while it has focus. Only the glass: the composer keeps its
+                // height, so the feed and the buttons beside it stay put.
+                .chromeBackground(
+                    RoundedRectangle(cornerRadius: Metrics.chromeHeight / 2 + (isFocused ? Metrics.focusGrowth : 0)),
+                    outset: isFocused ? Metrics.focusGrowth : 0
+                )
+                .animation(Metrics.focusAnimation, value: isFocused)
 
             circleButton(action: canSend ? onSend : {}) {
                 // One symbol that morphs between mic and send, rather than two views that swap.
@@ -59,22 +69,3 @@ struct Composer: View {
         .chromeBackground(Circle())
     }
 }
-
-#if os(iOS)
-/// Puts the keyboard away. iPhone keyboards have no key for it, and on iPhone the system ignores buttons placed in
-/// the keyboard's own top row, so this sits on top of the keyboard, under the send button.
-/// Not a `.keyboard` toolbar: on iOS 26 that toolbar covers the composer, which is a bottom safe-area inset.
-struct HideKeyboardButton: View {
-    let action: () -> Void
-
-    var body: some View {
-        ChromeIconButton(systemImage: "keyboard.chevron.compact.down", size: 16, action: action)
-            .frame(width: Metrics.chromeHeight, height: Metrics.chromeHeight)
-            .chromeBackground(Circle())
-            .accessibilityLabel("Hide Keyboard")
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .padding(.horizontal, Metrics.sideMargin)
-            .padding(.bottom, Metrics.composerBottom)
-    }
-}
-#endif

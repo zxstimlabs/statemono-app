@@ -1,0 +1,1167 @@
+{
+  "entries" : [
+    {
+      "attemptedAt" : "2026-09-29T04:26:40Z",
+      "id" : 1,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 3.2294875,
+      "tags" : [
+        "iphone",
+        "apple",
+        "smartphone",
+        "technology",
+        "apple intelligence"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:41Z",
+      "id" : 2,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.2890835840000001,
+      "tags" : [
+        "laptop",
+        "apple",
+        "macbook air",
+        "m5 chip",
+        "ai"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:42Z",
+      "id" : 3,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.052555958,
+      "tags" : [
+        "laptop",
+        "apple",
+        "macbook pro",
+        "ai",
+        "battery"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:44Z",
+      "id" : 4,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.175058083,
+      "tags" : [
+        "headset",
+        "technology",
+        "virtual reality",
+        "apple",
+        "m5 chip"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:45Z",
+      "id" : 5,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.199578792,
+      "tags" : [
+        "headphones",
+        "active noise cancellation",
+        "apple",
+        "hearing health",
+        "earbuds"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:46Z",
+      "id" : 6,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.203995583,
+      "tags" : [
+        "health",
+        "device",
+        "watch",
+        "series 12",
+        "ultra 4"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:47Z",
+      "id" : 7,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.081081291,
+      "tags" : [
+        "apple",
+        "privacy",
+        "apple intelligence",
+        "security",
+        "technology"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:48Z",
+      "id" : 8,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.059912958,
+      "tags" : [
+        "news",
+        "apple",
+        "press releases",
+        "updates",
+        "video"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:49Z",
+      "id" : 9,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.152242458,
+      "tags" : [
+        "swiftui",
+        "apple developer documentation",
+        "user interface",
+        "platform",
+        "documentation"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:50Z",
+      "id" : 10,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.219628167,
+      "tags" : [
+        "foundation models",
+        "apple developer",
+        "language understanding",
+        "structured output",
+        "tool calling"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:51Z",
+      "id" : 11,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.018532458,
+      "tags" : [
+        "user interface",
+        "design",
+        "apple",
+        "guidelines",
+        "documentation"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:53Z",
+      "id" : 12,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.225071875,
+      "tags" : [
+        "apple",
+        "developer",
+        "wwdc26",
+        "technology",
+        "community"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:54Z",
+      "id" : 13,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.011903583,
+      "tags" : [
+        "database",
+        "software",
+        "sqlite",
+        "wikipedia",
+        "database-management"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:55Z",
+      "id" : 14,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.022865375,
+      "tags" : [
+        "software",
+        "telegram",
+        "wikipedia",
+        "online",
+        "communication"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:56Z",
+      "id" : 15,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.040846417,
+      "tags" : [
+        "swift",
+        "programming",
+        "language",
+        "apple",
+        "wikipedia"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:57Z",
+      "id" : 16,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.036227917,
+      "tags" : [
+        "levenshtein",
+        "distance",
+        "string",
+        "algorithm",
+        "wikipedia"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:58Z",
+      "id" : 17,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.026796666,
+      "tags" : [
+        "coffee",
+        "drink",
+        "beverage",
+        "espresso",
+        "wikipedia"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:26:59Z",
+      "id" : 18,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.196109209,
+      "tags" : [
+        "bread",
+        "fermentation",
+        "recipe",
+        "food",
+        "sourdough"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:00Z",
+      "id" : 19,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.043587042,
+      "tags" : [
+        "mountain",
+        "highest",
+        "peak",
+        "altitude",
+        "mountains"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:01Z",
+      "id" : 20,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.000809834,
+      "tags" : [
+        "great barrier reef",
+        "environment",
+        "natural",
+        "australia",
+        "ocean"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:02Z",
+      "id" : 21,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.079618041,
+      "tags" : [
+        "biology",
+        "process",
+        "plants",
+        "ecosystem",
+        "science"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:03Z",
+      "id" : 22,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.13260475,
+      "tags" : [
+        "black hole",
+        "astronomy",
+        "universe",
+        "physics",
+        "wikipedia"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:04Z",
+      "id" : 23,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 0.983218333,
+      "tags" : [
+        "music",
+        "band",
+        "history",
+        "culture",
+        "wikipedia"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:05Z",
+      "id" : 24,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.109151333,
+      "tags" : [
+        "running",
+        "competition",
+        "athletics",
+        "ancient greece",
+        "long-distance"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:06Z",
+      "id" : 25,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.014793209,
+      "tags" : [
+        "philosophy",
+        "stoicism",
+        "wisdom",
+        "ancient",
+        "wikipedia"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:08Z",
+      "id" : 26,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.270473583,
+      "tags" : [
+        "cryptocurrency",
+        "digital currency",
+        "financial technology",
+        "blockchain",
+        "bitcoin"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:09Z",
+      "id" : 27,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.266360125,
+      "tags" : [
+        "large language model",
+        "artificial intelligence",
+        "natural language processing",
+        "wikipedia",
+        "web resource"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:10Z",
+      "id" : 28,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 0.996234791,
+      "tags" : [
+        "city",
+        "japan",
+        "travel",
+        "culture",
+        "wikipedia"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:11Z",
+      "id" : 29,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.004774458,
+      "tags" : [
+        "country",
+        "europe",
+        "island",
+        "nation",
+        "wikipedia"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:12Z",
+      "id" : 30,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.226411875,
+      "tags" : [
+        "time_management",
+        "productivity",
+        "work_method",
+        "focus",
+        "pomodoro"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:13Z",
+      "id" : 31,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.001680542,
+      "tags" : [
+        "diet",
+        "nutrition",
+        "health",
+        "food",
+        "mediterranean"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:14Z",
+      "id" : 32,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.258170875,
+      "tags" : [
+        "space telescope",
+        "astronomy",
+        "james webb",
+        "nasa",
+        "space exploration"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:16Z",
+      "id" : 33,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.164369125,
+      "tags" : [
+        "user",
+        "social media",
+        "platform",
+        "username",
+        "status"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:17Z",
+      "id" : 34,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.296222166,
+      "tags" : [
+        "us president",
+        "barack obama",
+        "social media",
+        "x",
+        "election"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:18Z",
+      "id" : 35,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.0487578339999999,
+      "tags" : [
+        "television",
+        "comedy",
+        "celebrity",
+        "awards",
+        "photo"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:19Z",
+      "id" : 36,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.0469205,
+      "tags" : [
+        "elon musk",
+        "x",
+        "social media",
+        "freedom",
+        "bird"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:20Z",
+      "id" : 37,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.26133225,
+      "tags" : [
+        "song",
+        "video",
+        "remaster",
+        "rick astley",
+        "never gonna give you up"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:21Z",
+      "id" : 38,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.032598584,
+      "tags" : [
+        "zoo",
+        "environment",
+        "health",
+        "youtube",
+        "plastics"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:22Z",
+      "id" : 39,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.058370833,
+      "tags" : [
+        "music",
+        "mv",
+        "south korea",
+        "youtube",
+        "gangnam"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:23Z",
+      "id" : 40,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.034807958,
+      "tags" : [
+        "song",
+        "music",
+        "artist",
+        "youtube",
+        "link"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:25Z",
+      "id" : 41,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.1705368329999999,
+      "tags" : [
+        "apple",
+        "stanford",
+        "1990s",
+        "ceo",
+        "youtube"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:26Z",
+      "id" : 42,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.199687375,
+      "tags" : [
+        "tim urban",
+        "procrastination",
+        "ted talk",
+        "last minute",
+        "productivity"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:27Z",
+      "id" : 43,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.002610625,
+      "tags" : [
+        "sqlite",
+        "database",
+        "toolkit",
+        "swift",
+        "application"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:28Z",
+      "id" : 44,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.04203525,
+      "tags" : [
+        "github",
+        "swift",
+        "macos",
+        "telegram",
+        "opensource"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:29Z",
+      "id" : 45,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.015823208,
+      "tags" : [
+        "github",
+        "telegram",
+        "ios",
+        "development",
+        "opensource"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:30Z",
+      "id" : 46,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.113736208,
+      "tags" : [
+        "swift",
+        "programming language",
+        "github",
+        "swiftlang",
+        "code"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:31Z",
+      "id" : 47,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.200701542,
+      "tags" : [
+        "swift",
+        "composable-architecture",
+        "library",
+        "application-development",
+        "github"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:32Z",
+      "id" : 48,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.088074958,
+      "tags" : [
+        "github",
+        "ollama",
+        "models",
+        "ai",
+        "opensource"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:34Z",
+      "id" : 49,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.354452417,
+      "tags" : [
+        "github",
+        "llama.cpp",
+        "llm inference",
+        "c/c++",
+        "machine learning"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:35Z",
+      "id" : 50,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.060869834,
+      "tags" : [
+        "github",
+        "sqlite",
+        "source code",
+        "development",
+        "mirror"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:36Z",
+      "id" : 51,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.025707084,
+      "tags" : [
+        "github",
+        "linux",
+        "kernel",
+        "source",
+        "development"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:37Z",
+      "id" : 52,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.035447958,
+      "tags" : [
+        "linux",
+        "github",
+        "software",
+        "development",
+        "opinionated"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:38Z",
+      "id" : 53,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.223739208,
+      "tags" : [
+        "compositor",
+        "wayland",
+        "customizable",
+        "wayland",
+        "github"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:39Z",
+      "id" : 54,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.209597334,
+      "tags" : [
+        "github",
+        "realtime backend",
+        "open source",
+        "realtime",
+        "file"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:40Z",
+      "id" : 55,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.102042583,
+      "tags" : [
+        "sqlite",
+        "fts5",
+        "extension",
+        "database",
+        "search"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:41Z",
+      "id" : 56,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.07304075,
+      "tags" : [
+        "programming",
+        "language",
+        "javascript",
+        "web",
+        "developer"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:42Z",
+      "id" : 57,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.04096425,
+      "tags" : [
+        "programming language",
+        "rust",
+        "developer resources",
+        "documentation",
+        "programming"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:44Z",
+      "id" : 58,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.189451291,
+      "tags" : [
+        "microservices",
+        "architecture",
+        "engineering",
+        "distributed systems",
+        "microservices style"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:45Z",
+      "id" : 59,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.185063083,
+      "tags" : [
+        "statistics",
+        "performance",
+        "averages",
+        "paulgraham",
+        "blog"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:46Z",
+      "id" : 60,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.1799273750000001,
+      "tags" : [
+        "startup",
+        "ideas",
+        "entrepreneurship",
+        "paulgraham",
+        "business"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:46Z",
+      "id" : 61,
+      "problem" : "May contain unsafe content",
+      "seconds" : 0.223393167
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:47Z",
+      "id" : 62,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.209263,
+      "tags" : [
+        "swiftui",
+        "app development",
+        "swift",
+        "tutorial",
+        "hacking with swift"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:49Z",
+      "id" : 63,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.188522125,
+      "tags" : [
+        "remote access",
+        "security",
+        "remote desktop",
+        "tools",
+        "remote work"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:50Z",
+      "id" : 64,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.05989775,
+      "tags" : [
+        "news",
+        "website",
+        "programming",
+        "technology",
+        "startup"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:51Z",
+      "id" : 65,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.3150831250000001,
+      "tags" : [
+        "film",
+        "1994",
+        "prison",
+        "hope",
+        "andy dufresne"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:52Z",
+      "id" : 66,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.045656333,
+      "tags" : [
+        "film",
+        "space",
+        "exploration",
+        "wormhole",
+        "interstellar"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:53Z",
+      "id" : 67,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.017201917,
+      "tags" : [
+        "show",
+        "mystery",
+        "supernatural",
+        "teenagers",
+        "horror"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:54Z",
+      "id" : 68,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.011508875,
+      "tags" : [
+        "spotify",
+        "music",
+        "platform",
+        "web",
+        "artist"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:55Z",
+      "id" : 69,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.2548192089999999,
+      "tags" : [
+        "website",
+        "game",
+        "portal 2",
+        "gameplay",
+        "game-news"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:56Z",
+      "id" : 70,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.27334625,
+      "tags" : [
+        "game development",
+        "independent studio",
+        "san francisco",
+        "video games",
+        "hades"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:58Z",
+      "id" : 71,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.270453667,
+      "tags" : [
+        "book",
+        "fantasy",
+        "literature",
+        "middle-earth",
+        "jrr-tolkien"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:27:59Z",
+      "id" : 72,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.109590625,
+      "tags" : [
+        "education",
+        "creativity",
+        "schools",
+        "education system",
+        "ted"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:00Z",
+      "id" : 73,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.200685916,
+      "tags" : [
+        "word game",
+        "puzzle",
+        "daily challenge",
+        "nytimes",
+        "wordle"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:01Z",
+      "id" : 74,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.04533075,
+      "tags" : [
+        "news",
+        "sport",
+        "opinion",
+        "guardian",
+        "international"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:02Z",
+      "id" : 75,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.1146515830000001,
+      "tags" : [
+        "chocolate",
+        "cookie",
+        "recipe",
+        "cooking",
+        "nyt"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:03Z",
+      "id" : 76,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.233110042,
+      "tags" : [
+        "bookshelf",
+        "storage",
+        "adjustable shelves",
+        "timeless design",
+        "ikea"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:05Z",
+      "id" : 77,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.247351042,
+      "tags" : [
+        "national park",
+        "nature",
+        "wilderness",
+        "waterfalls",
+        "sequoias"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:06Z",
+      "id" : 78,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.222703125,
+      "tags" : [
+        "travel",
+        "japan",
+        "holidays",
+        "lonelyplanet",
+        "japan-travel"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:07Z",
+      "id" : 79,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.041559166,
+      "tags" : [
+        "vacation rentals",
+        "accommodation",
+        "travel",
+        "airbnb",
+        "rental"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:08Z",
+      "id" : 80,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 0.87693225,
+      "tags" : [
+        "website",
+        "forum",
+        "reddit",
+        "swift"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:09Z",
+      "id" : 81,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.019925375,
+      "tags" : [
+        "language",
+        "game",
+        "free",
+        "learning",
+        "duolingo"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:10Z",
+      "id" : 82,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.069664167,
+      "tags" : [
+        "running",
+        "cycling",
+        "hiking",
+        "fitness",
+        "app"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:11Z",
+      "id" : 83,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.130649209,
+      "tags" : [
+        "design",
+        "design tool",
+        "ai",
+        "collaboration",
+        "product design"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:12Z",
+      "id" : 84,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.140085667,
+      "tags" : [
+        "product development",
+        "ai",
+        "planning",
+        "product design",
+        "linear app"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:13Z",
+      "id" : 85,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.089263958,
+      "tags" : [
+        "productivity",
+        "tools",
+        "launcher",
+        "shortcut",
+        "raycast"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:14Z",
+      "id" : 86,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.075853542,
+      "tags" : [
+        "app",
+        "thought",
+        "organization",
+        "note-taking",
+        "productivity"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:15Z",
+      "id" : 87,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.0736495,
+      "tags" : [
+        "ai",
+        "workspace",
+        "automation",
+        "tools",
+        "notion"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:16Z",
+      "id" : 88,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.030083417,
+      "tags" : [
+        "ai",
+        "safety",
+        "research",
+        "company",
+        "anthropic"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:17Z",
+      "id" : 89,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.013849792,
+      "tags" : [
+        "ai",
+        "chatbot",
+        "productivity",
+        "answers",
+        "technology"
+      ]
+    },
+    {
+      "attemptedAt" : "2026-09-29T04:28:19Z",
+      "id" : 90,
+      "osVersion" : "Version 27.0 (Build 26A428)",
+      "seconds" : 1.1804397500000001,
+      "tags" : [
+        "connectivity",
+        "security",
+        "multi-cloud",
+        "devops",
+        "platform"
+      ]
+    }
+  ],
+  "instructions" : "Tag a saved web link so it can be found by searching later. Give 3 to 8 short lowercase keywords: what it is about, its broader topics, and related words someone might search for that aren't in the text. Write every tag in English, whatever the language of the text."
+}

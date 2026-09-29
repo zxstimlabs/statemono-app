@@ -35,7 +35,9 @@ struct SearchField: View {
         .padding(.leading, 13)
         .padding(.trailing, 11)
         .frame(height: Metrics.chromeHeight)
-        .chromeBackground(Capsule())
+        // Grows a little while it has focus, like the composer. Only the glass, so the header keeps its height.
+        .chromeBackground(Capsule(), outset: focus.wrappedValue == .search ? Metrics.focusGrowth : 0)
+        .animation(Metrics.focusAnimation, value: focus.wrappedValue == .search)
         .contentShape(Capsule())
         .onTapGesture { focus.wrappedValue = .search }
         .onChange(of: focus.wrappedValue) { old, new in
