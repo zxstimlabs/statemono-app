@@ -9,6 +9,7 @@ let package = Package(
     dependencies: [
         .package(path: "../../Packages/StatemonoKit"),
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
+        .package(url: "https://github.com/jkrukowski/swift-embeddings", from: "0.0.16"),
     ],
     targets: [
         .executableTarget(
@@ -16,6 +17,7 @@ let package = Package(
             dependencies: [
                 .product(name: "StatemonoKit", package: "StatemonoKit"),
                 .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "Embeddings", package: "swift-embeddings"),
             ]
         ),
     ]

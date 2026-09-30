@@ -132,7 +132,7 @@ struct ChatView: View {
             }
         }
         #endif
-        .onChange(of: search.query) { search.update(using: store.database) }
+        .onChange(of: search.query) { search.update(using: store.database, smartSearch: store.smartSearch) }
         .onChange(of: search.current) { _, id in
             if let id { jump(to: id) }
         }
@@ -144,7 +144,7 @@ struct ChatView: View {
             Text("Delete selected message?")
         }
         .sheet(isPresented: $showsSettings) {
-            SettingsView()
+            SettingsView(smartSearch: store.smartSearch)
         }
         #if os(macOS)
         // ⌘, and the app menu's Settings… item open the same sheet (`SettingsCommands`).
@@ -287,7 +287,7 @@ struct ChatView: View {
     #if os(iOS)
     /// Telegram-iOS's result arrows, while stepping through results in the chat.
     private var searchArrows: FeedButtons.SearchArrows? {
-        guard search.isActive, !search.isShowingList, !search.results.isEmpty else { return nil }
+        guard search.isActive, !search.isShowingList, !search.steps.isEmpty else { return nil }
         return FeedButtons.SearchArrows(canShowOlder: search.canShowOlder, onOlder: search.showOlder) {
             if search.canShowNewer { search.showNewer() } else { feedFollower.scrollToBottom() }
         }
@@ -337,6 +337,8 @@ struct ChatView: View {
                 onJumpToDate: jump(toDay:),
                 onToggleList: toggleList,
                 onStep: steppedThroughResults,
+                // Offered while Smart Search is off and nothing was found.
+                onSmartSearch: store.smartSearch.isOn || !search.steps.isEmpty ? nil : { showsSettings = true },
                 onClose: closeSearch
             )
             #if os(macOS)
@@ -370,12 +372,11 @@ struct ChatView: View {
     }
     #endif
 
-    /// A result picked in the list or dropdown: the chat jumps to it, and it becomes the current result.
+    /// A result picked in the list or dropdown: the chat jumps to it, and it becomes the current result. A related link
+    /// picked while there are matches isn't among the steps, so the chat only jumps.
     private func openResult(_ id: UUID) {
-        if search.current == id {
+        if search.current == id || !search.select(id) {
             jump(to: id)
-        } else {
-            search.select(id)
         }
         #if os(macOS)
         // TelegramSwift leaves nothing focused, so the dropdown closes.
@@ -430,7 +431,7 @@ struct ChatView: View {
     #if os(macOS)
     /// TelegramSwift's dropdown shows while the search field has focus and there's a result.
     private var showsDropdown: Bool {
-        focus == .search && !search.rows.isEmpty
+        focus == .search && !search.listRows.isEmpty
     }
 
     /// At most half the chat, and never closer than 50pt to its bottom (`InputContextHelper`).
@@ -471,13 +472,13 @@ struct ChatView: View {
     }
 
     private func loadHistory(through id: UUID) {
-        guard !store.messages.contains(where: { $0.id == id }) else { return }
-        #if os(macOS)
-        scroller.willPrepend()
-        #else
-        feedFollower.willPrepend()
-        #endif
-        store.ensureLoaded(id)
+        store.loadHistory(before: id) {
+            #if os(macOS)
+            scroller.willPrepend()
+            #else
+            feedFollower.willPrepend()
+            #endif
+        }
     }
 
     private func scroll(to id: String, anchor: UnitPoint) {

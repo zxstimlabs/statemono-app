@@ -7,11 +7,14 @@ import Synchronization
 /// - `media`: one row per image, with its size, placeholder, and cached file's size and last use. It indexes the files
 ///   in `MediaStore` and drives cleanup (Telegram's StorageBox).
 /// - `itemSearch`: an FTS5 index over item text and preview text, with the đ → d fix.
+/// - `itemVector`: Smart Search's vector for each item, while Smart Search is on (`AppDatabase+Vectors`).
 public final class AppDatabase: Sendable {
     let writer: any DatabaseWriter
     let media: MediaStore
     /// The search index's words, for typo tolerance (see `searchVocabulary()`).
     let vocabularyCache = Mutex<CachedVocabulary?>(nil)
+    /// Smart Search's vectors, for comparing with a query (see `relatedItems(to:model:excluding:count:)`).
+    let vectorIndexCache = Mutex<VectorIndex?>(nil)
 
     public init(_ writer: any DatabaseWriter, media: MediaStore) throws {
         self.writer = writer
@@ -97,6 +100,19 @@ public final class AppDatabase: Sendable {
                 t.column("previewSiteName")
                 t.column("previewTitle")
                 t.column("previewSummary")
+            }
+        }
+        // Smart Search (docs/search-plan.md, Phase 3). It only creates a table, so the share extension, which may be
+        // first to open the database, stays fast.
+        migrator.registerMigration("v2 itemVector") { db in
+            try db.create(table: "itemVector") { t in
+                t.primaryKey("itemRowID", .integer).references("item", onDelete: .cascade)
+                t.column("model", .text).notNull()
+                // SHA-256 of the text the vector was made from (`vectorText`), so edited text gets a new vector.
+                t.column("textHash", .blob).notNull()
+                // 32-bit floats, in this device's byte order: vectors never leave the device.
+                t.column("vector", .blob).notNull()
+                t.column("computedAt", .datetime).notNull()
             }
         }
         return migrator

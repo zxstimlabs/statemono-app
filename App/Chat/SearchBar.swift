@@ -25,7 +25,7 @@ struct SearchField: View {
                 .focused(focus, equals: .search)
                 .onSubmit {
                     #if os(macOS)
-                    if let cursor = search.cursor, !search.rows.isEmpty {
+                    if let cursor = search.cursor, !search.listRows.isEmpty {
                         onOpenResult(cursor)
                         return
                     }
@@ -36,7 +36,7 @@ struct SearchField: View {
                 .onKeyPress(.downArrow) { moveCursor(by: 1) }
                 .onKeyPress(.upArrow) { moveCursor(by: -1) }
                 .onKeyPress(.escape) {
-                    guard search.cursor != nil, !search.rows.isEmpty else { return .ignored }
+                    guard search.cursor != nil, !search.listRows.isEmpty else { return .ignored }
                     search.cursor = nil
                     return .handled
                 }
@@ -82,7 +82,7 @@ struct SearchField: View {
 
     #if os(macOS)
     private func moveCursor(by step: Int) -> KeyPress.Result {
-        guard !search.rows.isEmpty else { return .ignored }
+        guard !search.listRows.isEmpty else { return .ignored }
         search.moveCursor(by: step)
         return .handled
     }
@@ -93,6 +93,8 @@ struct SearchField: View {
 /// result, jump to a date, and close. On iPhone it also switches the results between the chat and a list, as
 /// Telegram-iOS's search panel does (`ChatTagSearchInputPanelNode`), and in list mode the counter reads "M messages".
 /// There, as in Telegram-iOS, the older and newer arrows float over the chat instead (`FeedButtons`).
+///
+/// While Smart Search is off and nothing is found, a Smart Search chip offers it (`onSmartSearch`).
 struct SearchPanel: View {
     @Bindable var search: ChatSearch
     var dateRange: ClosedRange<Date>
@@ -101,6 +103,8 @@ struct SearchPanel: View {
     var onToggleList: () -> Void = {}
     /// Called after the arrows move to another result.
     var onStep: () -> Void = {}
+    /// Opens Settings at Smart Search. Nil hides the chip.
+    var onSmartSearch: (() -> Void)?
     var onClose: () -> Void
 
     /// 27.5pt buttons with 4.5pt above and below.
@@ -121,11 +125,14 @@ struct SearchPanel: View {
                     .lineLimit(1)
             }
             .buttonStyle(.pressFeedback)
-            .disabled(!search.isShowingList || search.results.isEmpty)
+            .disabled(!search.isShowingList || search.steps.isEmpty)
             .padding(.leading, 10)
             Spacer(minLength: 0)
+            if let onSmartSearch {
+                SmartSearchChip(action: onSmartSearch)
+            }
             #if os(iOS)
-            if !search.results.isEmpty {
+            if !search.steps.isEmpty {
                 Button(search.isShowingList ? "Show as Chat" : "Show as List", action: onToggleList)
                     .font(.system(size: textSize.preview))
                     .foregroundStyle(.white)
@@ -170,15 +177,19 @@ struct SearchPanel: View {
         .chromeBackground(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    /// "1 of 12" counts back from the newest match, as Telegram does, and a list shows "12 messages". Nothing until
-    /// there's a query.
+    /// "1 of 12" counts back from the newest match, as Telegram does, and a list shows "12 messages". Related links,
+    /// stepped through when nothing matched, say so: "1 of 3 related". Nothing until there's a query.
     private var counter: String {
         guard !search.terms.isEmpty else { return "" }
         guard let index = search.currentIndex else { return String(localized: "No results") }
-        if search.isShowingList {
-            return search.results.count == 1 ? String(localized: "1 message") : String(localized: "\(search.results.count) messages")
+        let count = search.steps.count
+        if search.isSteppingRelated {
+            return search.isShowingList ? String(localized: "\(count) related") : String(localized: "\(index + 1) of \(count) related")
         }
-        return String(localized: "\(index + 1) of \(search.results.count)")
+        if search.isShowingList {
+            return count == 1 ? String(localized: "1 message") : String(localized: "\(count) messages")
+        }
+        return String(localized: "\(index + 1) of \(count)")
     }
 
     private func iconButton(_ systemImage: String, size: CGFloat, enabled: Bool = true, action: @escaping () -> Void) -> some View {
@@ -186,5 +197,26 @@ struct SearchPanel: View {
             .frame(width: 32, height: 27.5)
             .disabled(!enabled)
             .opacity(enabled ? 1 : 0.35)
+    }
+}
+
+/// Offers Smart Search in the search panel while it's off: a small accent capsule that opens Settings.
+private struct SmartSearchChip: View {
+    let action: () -> Void
+    @Environment(\.chatTextSize) private var textSize
+
+    var body: some View {
+        Button(action: action) {
+            Label("Smart Search", systemImage: "sparkles")
+                .font(.system(size: textSize.preview - 1, weight: .medium))
+                .foregroundStyle(Theme.accent)
+                .lineLimit(1)
+                .fixedSize()
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(Theme.accent.opacity(0.15), in: Capsule())
+        }
+        .buttonStyle(.pressFeedback)
+        .accessibilityHint("Opens Settings to turn on Smart Search, which finds links by meaning.")
     }
 }

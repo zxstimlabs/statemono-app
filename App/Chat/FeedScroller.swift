@@ -13,6 +13,8 @@ import SwiftUI
 ///   is reading further up, it's left alone.
 /// - Anything else moving the scroll view, like the user's trackpad, cancels the animation. Reduce Motion skips it.
 /// - It tells the scroll-to-bottom button when to show, and glides for it.
+/// - Wherever it leaves the feed, it tells SwiftUI (`settled()`), which otherwise keeps its own idea of the scroll
+///   position and puts the feed back there when older messages load.
 @MainActor
 @Observable
 final class FeedScroller: NSObject {
@@ -38,7 +40,8 @@ final class FeedScroller: NSObject {
     @ObservationIgnored private var knownDocumentHeight: CGFloat?
     @ObservationIgnored private var heightBeforeInsert: CGFloat?
     @ObservationIgnored private var heightBeforePrepend: CGFloat?
-    /// A jump to a row that hasn't been laid out yet, such as one in a page of history that's still loading.
+    /// A jump to a row that hasn't been laid out yet, such as one in a page of history that's still loading, or one
+    /// that older messages are about to push down.
     @ObservationIgnored private var pendingJump: (id: String, anchor: UnitPoint)?
     @ObservationIgnored private var framesWaitingForJump = 0
     @ObservationIgnored private var framesWaitingForInsert = 0
@@ -63,13 +66,14 @@ final class FeedScroller: NSObject {
     }
 
     /// Glides the row with this `FeedItem.id` to `anchor` of the visible area (`.center`, `.top`, ...). A row that
-    /// hasn't been laid out yet is jumped to once it has. Returns false only if there's no scroll view to drive.
+    /// hasn't been laid out yet is jumped to once it has, and so is every row while older messages are loading above
+    /// (`willPrepend`), since their frames are about to move. Returns false only if there's no scroll view to drive.
     @discardableResult
     func scroll(toRow id: String, anchor: UnitPoint) -> Bool {
         guard let scrollView, let documentView = scrollView.documentView, documentView.isFlipped, let contentAnchor else {
             return false
         }
-        guard let frame = rowFrames[id] else {
+        guard let frame = rowFrames[id], heightBeforePrepend == nil else {
             pendingJump = (id, anchor)
             framesWaitingForJump = 0
             startDisplayLink()
@@ -86,6 +90,7 @@ final class FeedScroller: NSObject {
         if reduceMotion {
             stop()
             set(target)
+            settled()
             return true
         }
         let current = currentState().value
@@ -105,6 +110,7 @@ final class FeedScroller: NSObject {
         if reduceMotion {
             stop()
             set(target)
+            settled()
             return
         }
         let insets = scrollView.contentInsets
@@ -167,12 +173,19 @@ final class FeedScroller: NSObject {
             knownDocumentHeight = height
             updateAwayFromBottom()
         }
-        // Older messages went in above: shift by the added height so the visible ones don't move.
+        // Older messages went in above: shift by the added height so the visible ones don't move. A jump waiting for
+        // them goes ahead on the next frame, from the rows' new frames.
         if let before = heightBeforePrepend {
             heightBeforePrepend = nil
             if height > before {
+                let jump = pendingJump
                 stop()
                 set(scrollView.contentView.bounds.minY + height - before)
+                if let jump {
+                    pendingJump = jump
+                    framesWaitingForJump = 0
+                    startDisplayLink()
+                }
             }
             return
         }
@@ -189,6 +202,7 @@ final class FeedScroller: NSObject {
         if reduceMotion {
             stop()
             set(bottom)
+            settled()
         } else {
             animate(to: bottom, response: Self.sendResponse)
         }
@@ -201,6 +215,7 @@ final class FeedScroller: NSObject {
         if reduceMotion {
             stop()
             set(bottom)
+            settled()
             return
         }
         if spring == nil, bottom - clip.bounds.minY > inserted {
@@ -231,11 +246,15 @@ final class FeedScroller: NSObject {
             return stop() // the user (or a resize) moved it; let them have it
         }
         if let jump = pendingJump {
-            if rowFrames[jump.id] != nil {
+            if rowFrames[jump.id] != nil, heightBeforePrepend == nil {
                 scroll(toRow: jump.id, anchor: jump.anchor)
             } else {
                 framesWaitingForJump += 1
-                if framesWaitingForJump > 30 { pendingJump = nil }
+                if framesWaitingForJump > 30 {
+                    // Half a second is long enough for any page to lay out; a prepend that never came is dropped too.
+                    pendingJump = nil
+                    heightBeforePrepend = nil
+                }
                 return
             }
         }
@@ -255,6 +274,7 @@ final class FeedScroller: NSObject {
         if abs(state.value - spring.target) < 0.25, abs(state.velocity) < 10 {
             set(spring.target)
             stop()
+            settled()
         } else {
             set(state.value)
         }
@@ -281,6 +301,17 @@ final class FeedScroller: NSObject {
         link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
         link.add(to: .main, forMode: .common)
         displayLink = link
+    }
+
+    /// Tells SwiftUI the feed has come to rest after a move made here, with the notifications a trackpad scroll posts.
+    /// SwiftUI's scroll view doesn't learn of moves made by setting the clip view's bounds. It keeps the position it
+    /// last knew, from launch the bottom, and puts the feed back there when the content next changes size. After a jump
+    /// to an older search result, the page of history loading for it threw the feed back to the bottom.
+    private func settled() {
+        guard let scrollView else { return }
+        for name in [NSScrollView.willStartLiveScrollNotification, NSScrollView.didLiveScrollNotification, NSScrollView.didEndLiveScrollNotification] {
+            NotificationCenter.default.post(name: name, object: scrollView)
+        }
     }
 
     private func stop() {

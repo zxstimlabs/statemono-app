@@ -8,18 +8,61 @@ import GRDB
 /// Keyword methods return link numbers in the order the app would show them, newest first (links are saved in list
 /// order, so a higher number is newer). Vector methods rank every link by similarity.
 enum Eval {
-    /// One way of making vectors, compared as they are or centered.
+    /// One way of making vectors: a model, and the text it's given.
     struct Model {
         let name: String
-        let embedder: Embedder
+        let embedder: any EvalEmbedder
         /// Whether the link itself is part of the text, as the plan has it, or only the preview's text.
         let includesLink: Bool
+        /// The open models' download size; Apple's is managed by the system.
+        var megabytes: Double?
+    }
+
+    /// A model's vectors for every link, compared as they are or centered.
+    struct Variant {
+        let name: String
+        let megabytes: Double?
+        let linkTime: Double
+        let queryTime: Double
     }
 
     /// How many related links the combined result shows after the keyword matches.
     static let relatedCount = 3
 
-    static func run(paths: Paths, queriesFile: URL?) async throws {
+    /// Apple's two models, as in the first Phase 0 runs, then the open models: all of them, or those named.
+    static func models(paths: Paths, only names: [String]) async throws -> [Model] {
+        var models: [Model] = []
+        if names.isEmpty || names.contains("apple") {
+            let contextual = try Embedder(.contextual)
+            try await contextual.prepare()
+            let sentence = try Embedder(.sentence)
+            models += [
+                Model(name: "apple contextual, with link (plan)", embedder: contextual, includesLink: true),
+                Model(name: "apple contextual, preview only", embedder: contextual, includesLink: false),
+                Model(name: "apple sentence, preview only", embedder: sentence, includesLink: false),
+            ]
+        }
+        // The app's own bge-small (`BertEmbedder`), reading the files swift-embeddings downloads for "bge-small".
+        if names.isEmpty || names.contains("app") {
+            do {
+                let embedder = try BertEmbedder(directory: paths.models.appending(path: "models/BAAI/bge-small-en-v1.5"), model: .bgeSmall)
+                models.append(Model(name: "app (bge-small)", embedder: embedder, includesLink: true, megabytes: Double(SearchModel.bgeSmall.downloadSize) / 1_000_000))
+            } catch {
+                print("skipped the app's model: run eval with --model bge-small once to download it (\(error))")
+            }
+        }
+        for open in OpenModel.all where names.isEmpty || names.contains(open.name) {
+            do {
+                let embedder = try await OpenEmbedder(open, paths: paths)
+                models.append(Model(name: open.name, embedder: embedder, includesLink: true, megabytes: embedder.megabytes))
+            } catch {
+                print("skipped \(open.name) (\(open.repo)): \(error)")
+            }
+        }
+        return models
+    }
+
+    static func run(paths: Paths, queriesFile: URL?, only names: [String]) async throws {
         let testSet = try TestSet.load(paths, queriesFile: queriesFile)
         let snapshot = try Snapshot.load(paths)
         let tags = (try? Tagger.tags(paths)) ?? [:]
@@ -27,50 +70,47 @@ enum Eval {
 
         let plain = try await Library(snapshot: snapshot, tags: [:])
         let tagged = try await Library(snapshot: snapshot, tags: tags)
+        let models = try await models(paths: paths, only: names)
 
-        let contextual = try Embedder(.contextual)
-        try await contextual.prepare()
-        let sentence = try Embedder(.sentence)
-        let models = [
-            Model(name: "contextual, with link (plan)", embedder: contextual, includesLink: true),
-            Model(name: "contextual, preview only", embedder: contextual, includesLink: false),
-            Model(name: "sentence, preview only", embedder: sentence, includesLink: false),
-        ]
-        var spaces: [VectorSpace] = []
-        var linkTimes: [Embedder.Kind: [Double]] = [:]
-        for model in models {
-            var vectors: [Int: [Float]] = [:]
-            for entry in snapshot {
-                let start = ContinuousClock.now
-                vectors[entry.id] = try model.embedder.vector(for: model.includesLink ? entry.document : entry.previewText)
-                linkTimes[model.embedder.kind, default: []].append(seconds(since: start))
-            }
-            spaces.append(VectorSpace(vectors: vectors))
-        }
-
-        printSpeed(linkTimes: linkTimes, embedders: [contextual, sentence], plain: plain)
         guard !testSet.queries.isEmpty else {
             print("\nNo queries yet: write them in docs/search-test-links.md, then run eval again.")
             return
         }
 
-        var results: [QueryResult] = []
-        for query in testSet.queries {
-            var related: [[(id: Int, score: Float)]] = []
-            for (model, space) in zip(models, spaces) {
-                let vector = try model.embedder.vector(for: query.text)
-                related.append(space.similarities(to: vector))
-                related.append(space.similarities(to: vector, centered: true))
-            }
-            results.append(QueryResult(
+        var results = try await testSet.queries.asyncMap { query in
+            QueryResult(
                 query: query,
                 keyword: try await plain.keyword(query.text),
                 typo: try await plain.keyword(query.text, typos: true),
                 tags: try await tagged.keyword(query.text, typos: true),
-                related: related
-            ))
+                related: []
+            )
         }
-        report(results, variants: models.flatMap { [$0.name, $0.name + ", centered"] })
+        var variants: [Variant] = []
+        for model in models {
+            var vectors: [Int: [Float]] = [:]
+            var linkTimes: [Double] = []
+            for entry in snapshot {
+                let start = ContinuousClock.now
+                vectors[entry.id] = try await model.embedder.vector(for: model.includesLink ? entry.document : entry.previewText, role: .document)
+                linkTimes.append(seconds(since: start))
+            }
+            let space = VectorSpace(vectors: vectors)
+            var queryTimes: [Double] = []
+            for index in results.indices {
+                let start = ContinuousClock.now
+                let vector = try await model.embedder.vector(for: results[index].query.text, role: .query)
+                queryTimes.append(seconds(since: start))
+                results[index].related.append(space.similarities(to: vector))
+                results[index].related.append(space.similarities(to: vector, centered: true))
+            }
+            let linkTime = median(linkTimes)
+            let queryTime = median(queryTimes)
+            variants.append(Variant(name: model.name, megabytes: model.megabytes, linkTime: linkTime, queryTime: queryTime))
+            variants.append(Variant(name: model.name + ", centered", megabytes: model.megabytes, linkTime: linkTime, queryTime: queryTime))
+        }
+        report(results, variants: variants)
+        printSpeed(plain: plain)
     }
 
     // MARK: - Report
@@ -81,7 +121,7 @@ enum Eval {
         let typo: [Int]
         let tags: [Int]
         /// Every link by similarity, best first, for each variant.
-        let related: [[(id: Int, score: Float)]]
+        var related: [[(id: Int, score: Float)]]
 
         /// Keyword matches (with typos and tags), then the best related links not already matched.
         func combined(_ variant: Int) -> [Int] {
@@ -91,61 +131,77 @@ enum Eval {
         func rank(_ list: [Int]) -> Int? {
             list.firstIndex(where: query.expected.contains).map { $0 + 1 }
         }
+
+        /// Whether the right link scored higher than every wrong one.
+        func rightScoresHighest(_ variant: Int) -> Bool {
+            related[variant].first.map { query.expected.contains($0.id) } ?? false
+        }
     }
 
-    static func report(_ results: [QueryResult], variants: [String]) {
-        func line(_ name: String, _ lists: [[Int]]) {
-            let ranks = zip(lists, results).map { $1.rank($0) }
-            func within(_ k: Int) -> String { "\(ranks.filter { ($0 ?? .max) <= k }.count)/\(results.count)" }
-            let shown = Double(lists.map(\.count).reduce(0, +)) / Double(lists.count)
-            print(name.padding(toLength: 50, withPad: " ", startingAt: 0)
-                + within(1).padding(toLength: 8, withPad: " ", startingAt: 0)
-                + within(5).padding(toLength: 8, withPad: " ", startingAt: 0)
-                + within(10).padding(toLength: 8, withPad: " ", startingAt: 0)
-                + String(format: "%.1f", shown))
+    static func report(_ results: [QueryResult], variants: [Variant]) {
+        func within(_ k: Int, _ lists: [[Int]], _ group: [QueryResult] = results) -> Int {
+            zip(lists, group).filter { ($1.rank($0) ?? .max) <= k }.count
+        }
+        func pad(_ text: String, _ width: Int) -> String { text.padding(toLength: width, withPad: " ", startingAt: 0) }
+        let total = results.count
+
+        print("\n== Keyword search: the expected link first, in the top 5, in the top 10 (of \(total)); average results shown")
+        for (name, lists) in [("keywords", results.map(\.keyword)), ("+ typo tolerance (built)", results.map(\.typo)), ("+ tags", results.map(\.tags))] {
+            let shown = Double(lists.map(\.count).reduce(0, +)) / Double(total)
+            print(pad(name, 28) + pad("\(within(1, lists))", 6) + pad("\(within(5, lists))", 6) + pad("\(within(10, lists))", 6) + String(format: "%.1f", shown))
         }
 
-        print("\n== Recall: the expected link first, in the top 5, in the top 10; average results shown")
-        print("method".padding(toLength: 50, withPad: " ", startingAt: 0) + "first   top 5   top 10  results")
-        line("keywords (today)", results.map(\.keyword))
-        line("+ typo tolerance", results.map(\.typo))
-        line("+ tags", results.map(\.tags))
-        for (index, name) in variants.enumerated() {
-            line("+ tags + \(relatedCount) related: \(name)", results.map { $0.combined(index) })
+        let meaning = results.filter { $0.query.kind == "meaning" }
+        struct Row {
+            let index: Int
+            let combinedFirst: Int, combinedTop5: Int, meaningFound: Int
+            let aloneFirst: Int, aloneTop5: Int, aloneTop10: Int, highest: Int
         }
-        for (index, name) in variants.enumerated() {
-            line("vectors alone: \(name)", results.map { $0.related[index].map(\.id) })
+        let rows = variants.indices.map { index in
+            let alone = results.map { $0.related[index].map(\.id) }
+            let combined = results.map { $0.combined(index) }
+            return Row(
+                index: index,
+                combinedFirst: within(1, combined),
+                combinedTop5: within(5, combined),
+                meaningFound: zip(meaning.map { $0.combined(index) }, meaning).filter { $1.rank($0) != nil }.count,
+                aloneFirst: within(1, alone),
+                aloneTop5: within(5, alone),
+                aloneTop10: within(10, alone),
+                highest: results.filter { $0.rightScoresHighest(index) }.count
+            )
+        }.sorted { ($0.meaningFound, $0.combinedTop5, $0.aloneTop10) > ($1.meaningFound, $1.combinedTop5, $1.aloneTop10) }
+
+        print("\n== Vector models, best first. \"+ \(relatedCount) related\": tags and typos, then the \(relatedCount) best links they missed (first, top 5).")
+        print("   \"meaning\": meaning queries found at all (of \(meaning.count)). \"alone\": every link by similarity (first, top 5, top 10).")
+        print("   \"best\": the right link scored highest. MB: download. Times: median on this Mac, per link and per query.")
+        print(pad("model", 38) + pad("MB", 6) + pad("+related", 10) + pad("meaning", 9) + pad("alone", 13) + pad("best", 6) + "link / query")
+        for row in rows {
+            let variant = variants[row.index]
+            print(pad(variant.name, 38)
+                + pad(variant.megabytes.map { String(format: "%.0f", $0) } ?? "-", 6)
+                + pad("\(row.combinedFirst) \(row.combinedTop5)", 10)
+                + pad("\(row.meaningFound)", 9)
+                + pad("\(row.aloneFirst) \(row.aloneTop5) \(row.aloneTop10)", 13)
+                + pad("\(row.highest)", 6)
+                + String(format: "%.1f / %.1fms", variant.linkTime * 1000, variant.queryTime * 1000))
         }
 
-        print("\n== By kind, found in the top 10")
+        // The rest compares the plan's Apple model with the best few, so it stays readable.
+        let plan = variants.firstIndex { $0.name.hasSuffix("(plan), centered") }
+        let shown = Array(([plan].compactMap { $0 } + rows.map(\.index)).reduce(into: [Int]()) { if !$0.contains($1) { $0.append($1) } }.prefix(4))
+
+        print("\n== By kind, found in the top 10: keywords / + typos / + tags; vectors alone: " + shown.map { variants[$0].name }.joined(separator: " / "))
         for kind in Set(results.map(\.query.kind)).sorted() {
             let group = results.filter { $0.query.kind == kind }
-            func count(_ list: (QueryResult) -> [Int]) -> Int { group.filter { ($0.rank(list($0)) ?? .max) <= 10 }.count }
-            let vectors = variants.indices.map { index in String(count { $0.related[index].map(\.id) }) }
-            print("\(kind) (\(group.count)): keywords \(count(\.keyword)), + typos \(count(\.typo)), + tags \(count(\.tags)); vectors alone \(vectors.joined(separator: " / "))")
+            let vectors = shown.map { index in String(within(10, group.map { $0.related[index].map(\.id) }, group)) }
+            print("\(kind) (\(group.count)): \(within(10, group.map(\.keyword), group)) / \(within(10, group.map(\.typo), group)) / \(within(10, group.map(\.tags), group)); \(vectors.joined(separator: " / "))")
         }
 
-        print("\n== Do the scores separate right from wrong? (right link scores highest; median right score; median best wrong)")
-        for (index, name) in variants.enumerated() {
-            var wins = 0
-            var right: [Float] = []
-            var wrong: [Float] = []
-            for result in results {
-                let scores = result.related[index]
-                let best = scores.first { result.query.expected.contains($0.id) }?.score ?? 0
-                let bestWrong = scores.first { !result.query.expected.contains($0.id) }?.score ?? 0
-                if best > bestWrong { wins += 1 }
-                right.append(best)
-                wrong.append(bestWrong)
-            }
-            print(name.padding(toLength: 40, withPad: " ", startingAt: 0) + "\(wins)/\(results.count)   " + String(format: "%.2f   %.2f", median(right), median(wrong)))
-        }
-
-        print("\n== Each query: rank of the expected link (- when missing)")
-        print("keywords / + typos / + tags | vectors: " + variants.joined(separator: " / "))
+        print("\n== Each query: rank of the expected link (- when missing): keywords / + typos / + tags | vectors alone: " + shown.map { variants[$0].name }.joined(separator: " / "))
         for result in results {
             func show(_ list: [Int]) -> String { result.rank(list).map(String.init) ?? "-" }
-            let vectors = result.related.map { show($0.map(\.id)) }.joined(separator: " / ")
+            let vectors = shown.map { show(result.related[$0].map(\.id)) }.joined(separator: " / ")
             print("\(result.query.text) → \(result.query.expected.sorted().map(String.init).joined(separator: ",")) [\(result.query.kind)]: \(show(result.keyword)) / \(show(result.typo)) / \(show(result.tags)) | \(vectors)")
         }
     }
@@ -154,21 +210,17 @@ enum Eval {
         values.isEmpty ? 0 : values.sorted()[values.count / 2]
     }
 
-    static func printSpeed(linkTimes: [Embedder.Kind: [Double]], embedders: [Embedder], plain: Library) {
+    static func median(_ values: [Double]) -> Double {
+        values.isEmpty ? 0 : values.sorted()[values.count / 2]
+    }
+
+    static func printSpeed(plain: Library) {
         func ms(_ seconds: Double) -> String { String(format: "%.1fms", seconds * 1000) }
         print("\n== Speed on this Mac")
-        for embedder in embedders {
-            let times = (linkTimes[embedder.kind] ?? [0]).sorted()
-            var queryTimes: [Double] = []
-            for text in ["remote desktop", "coffee", "how to get startup ideas", "space telescope photos", "swift"] {
-                let start = ContinuousClock.now
-                _ = try? embedder.vector(for: text)
-                queryTimes.append(seconds(since: start))
+        for dimension in [384, 512, 768] {
+            for count in [10_000, 50_000] {
+                print("comparing a query with \(count) link vectors of \(dimension) numbers: \(ms(VectorSpace.bruteForceTime(count: count, dimension: dimension)))")
             }
-            print("\(embedder.kind) (\(embedder.dimension) numbers): link vector median \(ms(times[times.count / 2])), slowest \(ms(times.last ?? 0)); query vector median \(ms(queryTimes.sorted()[queryTimes.count / 2]))")
-        }
-        for count in [10_000, 50_000] {
-            print("comparing a query with \(count) link vectors: \(ms(VectorSpace.bruteForceTime(count: count, dimension: 512)))")
         }
         // A year of links has far more words than the test set, so the same lookup also runs over words from the
         // Mac's dictionary.
@@ -257,5 +309,13 @@ struct VectorSpace {
             times.append(seconds(since: start))
         }
         return times.sorted()[times.count / 2]
+    }
+}
+
+extension Array {
+    func asyncMap<T>(_ transform: (Element) async throws -> T) async rethrows -> [T] {
+        var results: [T] = []
+        for element in self { results.append(try await transform(element)) }
+        return results
     }
 }

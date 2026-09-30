@@ -81,7 +81,7 @@ enum Metrics {
         // 680 against the whole width, safe areas included; on every iPhone the row lands on the same side of it.
         // Of that, the bubble's frame gets all but 9pt, 3pt from the trailing edge, and the drawn bubble starts 1pt
         // inside the frame, so Telegram's bubbles reach 43pt from the left edge of an upright phone. The owner found
-        // that too wide, so bubbles here leave `extraLeadingSpace` more: 60pt.
+        // that too wide, so bubbles here leave `extraLeadingSpace` more: 76pt.
         let fill = rowWidth <= 500 ? rowWidth - 36 : floor(rowWidth * (rowWidth > 680 ? 0.65 : 0.85))
         return rowWidth - fill + 7 + extraLeadingSpace
         #endif
@@ -89,7 +89,7 @@ enum Metrics {
 
     #if os(iOS)
     /// Room beyond Telegram-iOS's on a bubble's leading side.
-    static let extraLeadingSpace: CGFloat = 17
+    static let extraLeadingSpace: CGFloat = 33
     #endif
 }
 

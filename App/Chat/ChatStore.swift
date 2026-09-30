@@ -19,6 +19,8 @@ final class ChatStore {
     private(set) var loadingPreviews: Set<Message.ID> = []
 
     @ObservationIgnored let database: AppDatabase
+    /// Finds links by meaning, once turned on in Settings.
+    @ObservationIgnored let smartSearch: SmartSearch
     @ObservationIgnored private let previews: LinkPreviewFetcher?
     /// The oldest loaded message's date; nil loads all of history.
     @ObservationIgnored private var start: Date?
@@ -29,6 +31,7 @@ final class ChatStore {
     init(database: AppDatabase, previews: LinkPreviewFetcher?) {
         self.database = database
         self.previews = previews
+        smartSearch = SmartSearch(database: database)
         start = try? database.feedStart(newest: Self.pageSize)
         observe()
     }
@@ -40,12 +43,22 @@ final class ChatStore {
         observe()
     }
 
-    /// Loads history back to `id`, plus a few messages above it, for jumping to a search result or a date.
-    func ensureLoaded(_ id: Message.ID) {
-        guard let start, !messages.contains(where: { $0.id == id }),
-              let date = try? database.createdAt(of: id), date < start
-        else { return }
-        self.start = try? database.feedStart(before: date, adding: 10)
+    /// Messages kept loaded above one the chat jumps to. Centering a message at the very top of what's loaded would
+    /// reach the top, and the next page would load in the middle of the jump and throw it off.
+    static let jumpMargin = 10
+
+    /// Loads history back to `jumpMargin` messages above `id`, for jumping to a search result or a date: when `id`
+    /// isn't loaded, or fewer than that are loaded above it while older ones exist. `willPrepend` runs first if older
+    /// messages are about to load, so the feed can keep what's on screen in place.
+    func loadHistory(before id: Message.ID, willPrepend: () -> Void) {
+        guard hasOlder, let start else { return }
+        if let index = messages.firstIndex(where: { $0.id == id }), index >= Self.jumpMargin { return }
+        guard let date = try? database.createdAt(of: id) else { return }
+        let newStart = try? database.feedStart(before: date, adding: Self.jumpMargin)
+        // Only ever further back. Nil loads all of history.
+        guard newStart.map({ $0 < start }) ?? true else { return }
+        willPrepend()
+        self.start = newStart
         observe()
     }
 

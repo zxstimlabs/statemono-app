@@ -1,6 +1,6 @@
 # Search test links
 
-For Phase 0 of `search-plan.md`. Claude chose the links on 2026-09-29; the owner writes the queries.
+For Phase 0 of `search-plan.md`. Claude chose the links on 2026-09-29 and, at the owner's request, wrote the queries on 2026-09-30.
 
 - **Fetched 2026-09-29:** every link's preview was fetched with the app's own fetcher and kept in `Tools/SearchEval/Data/snapshot.json`, so every run searches the same text. All 90 have one.
 - **Swapped:** nine links gave no preview and were replaced. Stack Overflow and Allrecipes refuse the fetcher (403), IMDb and Goodreads serve bot checks (Goodreads only on some tries), and BBC News timed out, so they moved to other sites. Steam timed out in the app's fetcher, though `curl` loads it in about a second; that's a preview bug for later, and the games moved to their official sites. Swift.org's documentation page redirects in the browser, which the fetcher doesn't follow, so it showed only "Redirecting…"; it became Hacking with Swift.
@@ -18,9 +18,43 @@ Write 20–30. Each row names the link numbers it should find, separated by comm
 - **Site:** just the site's name, like "wikipedia".
 - **Several answers:** more than one link is right.
 
+How these were written, so the numbers can be read fairly:
+- Claude wrote them from the "What it is" column, the way someone would recall a saved link, before reading the saved page text. The text was read afterwards only to set each query's kind. No query was changed after the eval ran.
+- Claude also designed the search, so these are less independent than the owner's own queries would be. Queries the owner adds later count the same.
+- Kinds describe the saved text, not the intent. "running app" was meant as a meaning query but both words are in Strava's title, so it's exact. A meaning query can share one word with its link ("twitter" is in every X post's site name), since keyword search still needs every word to match.
+- Some can't be found from their text on purpose: the Beatles' Spotify page saved only "Spotify – Web Player", and paulgraham.com pages have no "graham" in them as a separate word.
+
 | Query | Should find | Kind |
 |---|---|---|
-| | | |
+| sourdough | 18 | exact |
+| microservices | 58 | exact |
+| billy bookcase | 76 | exact |
+| yosemite | 77 | exact |
+| mount everest | 19 | exact |
+| procrastination | 42 | exact |
+| running app | 82 | exact |
+| pomod | 30 | start |
+| shawsh | 65 | start |
+| composab | 47 | start |
+| commenc | 41 | start |
+| desapcito | 40 | typo |
+| obsidain | 86 | typo |
+| mediteranean diet | 31 | typo |
+| stranger thigns | 67 | typo |
+| hobit | 71 | typo |
+| rickroll | 37 | meaning |
+| graduation speech | 41 | meaning |
+| election night tweet | 34 | meaning |
+| twitter acquisition | 36 | meaning |
+| issue tracker | 84 | meaning |
+| run ai models locally | 48, 49 | meaning |
+| greek philosophy | 25 | meaning |
+| letterboxd | 65, 66 | site |
+| netflix | 67 | site |
+| paul graham | 59, 60 | site |
+| telegram | 14, 44, 45 | several |
+| beatles | 23, 68 | several |
+| tailscale | 63, 90 | several |
 
 ## Links
 

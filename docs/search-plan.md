@@ -1,13 +1,13 @@
 # Search plan: progressive search
 
-Status: draft, updated 2026-09-29. Phases 1 (typo tolerance) and 2 (Settings and the results list) are built. Phase 0's test tool, link snapshot, tags and speed are done, and its recall numbers wait for the owner's queries (see Phase 0 results).
+Status: draft, updated 2026-09-30. Phases 1 (typo tolerance), 2 (Settings and the results list) and 3 (Smart Search, with bge-small) are built. Phase 0 is done: on 29 queries Apple's text model found 1 of 7 meaning queries and bge-small found 6, so Smart Search uses bge-small (see Phase 0 results and Phase 3).
 
 ## The idea
 
 The app installs light and stays light:
 - **Nothing extra at install:** no models are bundled, nothing downloads, and no work runs in the background.
 - **Smarter search is opt-in:** people turn it on in a Smart Search section, in steps that match what they need. Each step says what it downloads and does.
-- **Everything runs on the device**, using Apple's models. Nothing is sent to a server.
+- **Everything runs on the device.** Nothing is sent to a server. Smart Search downloads its model once; the tags use Apple's.
 - **Unsupported devices get an explanation:** when a device or OS can't use a step, the section says why in plain words, instead of hiding the step or failing silently.
 
 ## Today
@@ -23,14 +23,14 @@ In-chat search goes through the FTS5 table `itemSearch` (`AppDatabase.search`).
 | Question | Decision |
 |---|---|
 | Rollout | Progressive: light by default, opt-in steps in a Smart Search section, on-device only, with explanations for unsupported devices |
-| Engine for meaning-based search | Apple's built-in text vectors (`NLContextualEmbedding`), behind a swappable interface |
+| Engine for meaning-based search | BAAI's bge-small-en-v1.5, downloaded from Hugging Face when Smart Search is turned on, behind a swappable interface (`TextEmbedder`). Apple's `NLContextualEmbedding` was the plan until Phase 0 measured it (owner, 2026-09-30) |
 | First on-device model feature | Tags at save time |
 | Minimum OS | Stays iOS 18 / macOS 15; model features only on iOS/macOS 26+ |
 | Scale | 4–10 links a day, depending on the person: about 1,500–3,650 a year |
 | Language | English only |
 | Typo tolerance | Part of Basic, always on, no switch. It needs no download and runs on every device the app supports (see How a search works) |
 | How results are shown | Both: stepping through the chat, plus a list |
-| Related results | In both places, as Telegram treats its results: the list's Related section, and up/down stepping after the keyword matches |
+| Related results | The list's Related section always shows them. Up/down stepping goes through them only when nothing matches by keyword (decided 2026-09-30 from Phase 0, for the owner to test) |
 | Mac results list | TelegramSwift's dropdown under the search field |
 | Tags | Used by search, and shown per message: long press (right-click on the Mac) → Tags opens a sheet with that message's tags. No editing. Re-tag All in Settings, and Re-tag for one link in its Tags sheet; nothing re-tags on its own |
 | Settings | A gear button replaces the header's ⋯ on both platforms and opens Settings as a sheet, the same on both, with the Smart Search section |
@@ -42,7 +42,7 @@ In-chat search goes through the FTS5 table `itemSearch` (`AppDatabase.search`).
 | Tier | What it does | Downloads | Background work | Needs | Default |
 |---|---|---|---|---|---|
 | **Basic** | Keyword search as today, plus typo tolerance | None | None | Any supported OS (iOS 18 / macOS 15) | On |
-| **Smart Search** | Related results by meaning, in the results list and when stepping | Apple's English text model, one time (size measured in Phase 0) | Makes a vector for each link, once, then one per new link | iOS 18 / macOS 15 (the API is iOS 17+) | Off |
+| **Smart Search** | Related results by meaning, in the results list, and when stepping if nothing matches by keyword | bge-small from Hugging Face, one time, 133.7 MB | Makes a vector for each link, once, then one per new link | iOS 18 / macOS 15 | Off |
 | **Apple Intelligence tags** | 3–8 tags per link, generated on device, so keyword search finds related words | None from the app; Apple Intelligence brings its own model | Tags each link once, then each new link | iOS/macOS 26+, an Apple Intelligence device, Apple Intelligence turned on | Off |
 | Later | Understanding natural-language questions, Ask with citations, a larger bundled vector model, system Spotlight | Depends on the step | Depends on the step | Depends on the step | Off |
 
@@ -63,11 +63,12 @@ One row per tier, with a switch, one sentence on what it does, and a status line
 **Basic search:** always on, with no switch. It only explains what's included, typo tolerance among it.
 
 **Smart Search**, status by state:
-- **Off:** "Find links by meaning, even without the same words. Downloads a language model from Apple (about N MB)."
-- **Downloading:** "Downloading from Apple…" with progress if the API reports it, otherwise a spinner.
-- **Preparing:** "Preparing your links… 420 of 1,240". This runs while the app is open and pauses in Low Power Mode.
+- **Off:** "Finds links by meaning, even without the same words. Downloads a search model once (133.7 MB)."
+- **Downloading:** "Downloading the search model… 45%" with a progress bar.
+- **Preparing:** "Preparing your links… 420 of 1,240" with a progress bar. This runs while the app is open.
+- **Paused:** "Paused in Low Power Mode. 420 of 1,240 links ready."
 - **Ready:** "On. 1,240 links ready."
-- **Download failed:** "Couldn't download the model. Check your connection and try again." with a Retry button.
+- **Failed:** "Couldn't download the search model. Check your connection and try again." with a Try Again button. A model that downloaded but won't load is deleted first, so trying again downloads it afresh.
 
 **Apple Intelligence tags**, status by state:
 - **Off:** "Uses Apple Intelligence to add keywords to each link, so searches find related words."
@@ -84,7 +85,8 @@ One row per tier, with a switch, one sentence on what it does, and a status line
 ### Turning things off
 
 - **Stops the work:** turning off stops new work and removes that tier's derived data from the database, after a confirmation. That means vectors for Smart Search, and tags plus their index column for tags.
-- **Apple's model files stay:** the system manages Apple's downloads, and there's no API to delete them. The section says so.
+- **Smart Search's model is deleted too**, since the app downloaded it. The confirmation says how much that frees.
+- **Apple Intelligence's model stays:** the system manages it, and there's no API to delete it. The section's footer says so.
 - **Turning back on** rebuilds from scratch.
 
 ## What stays the same
@@ -134,15 +136,14 @@ This is today's prefix search, widened with typo tolerance.
 
 ### Smart Search: related matches, by meaning
 
-- **Where it lives:** an `Embedder` interface in StatemonoKit (model ID, revision, dimension, text → vector). The first implementation uses `NLContextualEmbedding` for English: token vectors are averaged, then normalized to length 1.
-- **Centered:** before comparing, the average of all link vectors is subtracted from each link's vector and from the query's, then they're normalized again. The average is recomputed when the vectors load. This spreads the scores out, and it ranked better in Phase 0.
+- **Where it lives:** a `TextEmbedder` interface in StatemonoKit (model ID with its revision, dimension, text → vector of length 1). The implementation, `BertEmbedder`, runs bge-small with Accelerate (see Phase 3). Queries get bge's instruction, "Represent this sentence for searching relevant passages: ", first.
+- **Not centered:** centering helped Apple's model in Phase 0 but made no difference to bge-small, so vectors are compared as they are.
 - **What gets a vector:** preview title, site name, description and message text, trimmed to the model's limit.
-- **Storage:** in SQLite, one vector per message (see Database changes). At a few KB per link, a year of links takes a few MB.
+- **Storage:** in SQLite, one vector per message (see Database changes). At 1.5 KB per link, a year of links takes about 6 MB.
 - **Query:** the query gets its own vector. The app keeps all link vectors in memory and compares them with a dot product using Accelerate. Brute force is fine up to tens of thousands of links, which is years of saving at 4–10 a day.
-- **What counts:** the 3 most similar links that keyword search didn't already match. There's no similarity cutoff: in Phase 0 right and wrong links scored about the same, so no cutoff could tell them apart. The owner's queries confirm the number.
+- **What counts:** the 3 most similar links that keyword search didn't already match. There's no similarity cutoff: in Phase 0 right and wrong links scored about the same, so no cutoff could tell them apart. The test set's queries didn't change it: related links rarely found the right link at all.
 - **When it runs:** as you type, with keyword search's 0.2s debounce. A query's vector took 10ms on this Mac in Phase 0; iPhone timing is checked in Phase 3.
-- **Model files missing or failing to load:** the tier shows as not ready in the section, and search behaves like Basic.
-- **Swapping later:** a bundled Core ML model (such as EmbeddingGemma or an e5 model, about 100–200MB) can implement the same interface as a later optional download, if Phase 0 shows Apple's model isn't good enough.
+- **Model files missing or failing to load:** the tier shows as failed in the section, and search behaves like Basic. Links still waiting for a vector aren't found by meaning yet.
 
 ### Apple Intelligence tags
 
@@ -178,7 +179,7 @@ This is today's prefix search, widened with typo tolerance.
 
 ## How results are shown
 
-- **Stepping through the chat:** goes through every result, in the list's order: keyword matches newest first, then related ones, best first. The counter reads "N of M" over both, with 1 as the newest keyword match, and up/down work as now. A related result has no words to highlight, so it flashes when landed on, like a match found only by a tag.
+- **Stepping through the chat:** goes through the keyword matches, newest first, as now. When nothing matches by keyword, it goes through the related results instead, best first, and "N of M" counts them. A related result has no words to highlight, so it flashes when landed on, like a match found only by a tag. In Phase 0 related links were wrong after a right keyword match in almost every query, so stepping skips them then.
 - **A results list** with two sections:
   - **Matches:** keyword results, newest first, the order Telegram uses on both platforms.
   - **Related:** results by meaning, best match first, only when Smart Search is on.
@@ -213,7 +214,7 @@ Behavior:
 
 Each tier gets its own migration, added in the phase that builds it, so Basic never carries unused tables.
 
-- **Smart Search:** a new table `itemVector`, one row per message, holding the vector as 32-bit floats, the model ID and revision, and a hash of the text it was made from. If the preview changes the text, the vector is recomputed. Turning Smart Search off empties the table.
+- **Smart Search** (migration "v2 itemVector"): a table `itemVector`, one row per message, holding the vector as 32-bit floats, the model ID and revision, the SHA-256 of the text it was made from, and when it was made. If the preview or the text changes, the vector is made again. Turning Smart Search off empties the table.
 - **Tags:**
   - `item` gains `tags` (nullable), `tagsAttemptedAt` (nil until a try finishes, and set even if the model returned nothing, like `previewFetchedAt`), and `tagsOSVersion`, the OS version the tags were made on.
   - The search index gains a `tags` column. FTS5 tables can't gain a column, so the migration drops and recreates `itemSearch` and its triggers, then rebuilds it. The column stays empty unless the tier is on.
@@ -231,13 +232,16 @@ Each phase is built and tested before the next.
   - `swift run SearchEval probe`: checks that Apple's English text model and Apple Intelligence work from the command line.
   - `swift run SearchEval snapshot`: fetches each link's preview once with the app's fetcher, into `snapshot.json`. It keeps what it has and fetches only new or missing links; `--refresh` fetches them all again.
   - `swift run SearchEval tag`: asks Apple Intelligence for tags, into `tags.json`, the way the app will (see Re-tagging). Each link is tagged once, and a refused link isn't retried. `--all` re-tags every link, and `--link <number>` re-tags one. Each entry records when it was tried and the OS version.
-  - `swift run SearchEval eval`: recall for each tier, plus speed. For speed that matches the app, build it optimized: `swift run -c release -Xswiftc -enable-testing SearchEval eval`.
+  - `swift run SearchEval eval`: recall for each tier, plus speed. For speed that matches the app, build it optimized: `swift run -c release -Xswiftc -enable-testing SearchEval eval`. `--model <name>`, repeatable, compares only those models (`apple` for Apple's).
+  - `swift run -c release -Xswiftc -enable-testing SearchEval try "<query>"`: searches the test links for one query, to test by hand. It prints today's matches (keywords, typos and tags), then the closest links by meaning for Apple's model and the app's bge-small (`app`), marking the 3 Smart Search would add. `--model` picks others.
+  - `swift run -c release -Xswiftc -enable-testing SearchEval check`: checks the app's bge-small (`BertEmbedder`) against swift-embeddings' on every test link and query, and times it. `--download` also installs the model the way the app does, into a temporary folder.
+  - Open models (`OpenModels.swift`) run with [swift-embeddings](https://github.com/jkrukowski/swift-embeddings) (MIT) on `MLTensor`, which iOS 18 and macOS 15 have. The first run downloads them from Hugging Face into `Data/Models` (about 1.4GB for all of them), which git ignores.
 - **Recall:** the share of queries whose expected link lands first, in the top 5 and in the top 10. Measured for keywords today, then adding typo tolerance, tags, and related results.
 - **Output:** how many related links to show, the typo limits, and whether Apple's vector model is good enough.
 
 ### Phase 0 results
 
-Measured on 2026-09-29 on this Mac (macOS 27, Xcode 27). Recall below comes from 16 smoke queries Claude wrote to check the tool (`Tools/SearchEval/Data/smoke-queries.md`), so treat it as a first look. The owner's queries give the real numbers.
+Measured on 2026-09-29 on this Mac (macOS 27, Xcode 27). Recall below comes from 16 smoke queries Claude wrote to check the tool (`Tools/SearchEval/Data/smoke-queries.md`), so treat it as a first look. The test set's 29 queries, at the end of this section, give the real numbers.
 
 **What works from the command line**
 - Apple's English text model and Apple Intelligence both answer a command-line process, so no scratch app is needed.
@@ -279,9 +283,48 @@ Measured on 2026-09-29 on this Mac (macOS 27, Xcode 27). Recall below comes from
 - **Scores don't separate right from wrong:** the right link scored highest in only 4 of 16 queries, and the median right and best-wrong scores were 0.63 and 0.66. That's why the plan now shows a fixed 3 related links instead of using a cutoff.
 - **Other options did worse:** Apple's older sentence model (`NLEmbedding.sentenceEmbedding`) and leaving the link out of the text both ranked worse than the plan's model.
 - **Related links are mostly extra:** they helped only in the queries keywords missed. In the rest, all 3 were wrong links shown after the right one. See Open questions.
-- **Small corpus:** with 90 links, a top 3 is easy to hit; with thousands it'll be harder. The owner's queries decide whether Apple's model is good enough.
+- **Small corpus:** with 90 links, a top 3 is easy to hit; with thousands it'll be harder. The test set's queries measure whether Apple's model is good enough (below).
 
-**Next:** the owner writes 20–30 queries in `search-test-links.md`, then `swift run SearchEval eval` gives the real numbers.
+**Recall on the test set's 29 queries** (2026-09-30)
+
+Claude wrote these at the owner's request, from each link's "What it is" and before reading its saved text; `search-test-links.md` says how. No query was changed after the run.
+
+| Method | First | Top 5 | Results shown |
+|---|---|---|---|
+| Keywords | 16 | 16 | 0.7 |
+| + typo tolerance (built) | 21 | 21 | 0.9 |
+| + tags | 21 | 21 | 0.9 |
+| + tags + 3 related (the plan's model, centered) | 21 | 22 | 3.9 |
+
+- **Built search is solid:** it finds every exact (7), start-of-a-word (4), typo (5) and several-answers (3) query, first.
+- **Site:** 2 of 3. "paul graham" finds nothing, because the site name is "paulgraham.com", one word; "paulgraham" would find both essays.
+- **Meaning:** 0 of 7 by keywords or tags. The 3 related links found 1: "issue tracker" put Linear second.
+- **Tags miss by one word:** every word must match, and tags got partway: Stoicism is tagged "philosophy" and "ancient" but not "greek", Obama's post "election" but not "night" or "tweet", and Ollama's text and tags matched all of "run ai models locally" but "locally".
+- **Apple's model alone:** the right link came first in 0 of 29 queries and in the top 10 in 10. It never scored highest, and the median right score was 0.06 against 0.22 for the best wrong one (centered). No other variant reached more than 13 of 29 in the top 10.
+- **Worse than the smoke check,** where related links found 3 of 6 meaning queries. Those were written after seeing the pages ("coffee drink" for Espresso); these weren't.
+- **What it suggests:** Apple's model isn't good enough for Smart Search as planned. See Open questions.
+
+**Open models on the same 29 queries** (2026-09-30)
+
+Retrieval models from Hugging Face, the plan's "Swapping later" candidates, run the way the app would (swift-embeddings on `MLTensor`, CPU). Each gets the same text as Apple's (title, site, description and link), with the prefixes its model card asks for.
+
+| Model | Download | Meaning found (of 7) | + 3 related: first / top 5 | Alone: first / top 10 | Per link / query on this Mac |
+|---|---|---|---|---|---|
+| Apple contextual (the plan), centered | system | 1 | 21 / 22 | 0 / 10 | 15 / 10ms |
+| all-MiniLM-L6-v2 | 91MB | 6 | 26 / 28 | 22 / 27 | 32 / 20ms |
+| bge-small-en-v1.5 | 133MB | 6 | 25 / 28 | 21 / 26 | 65 / 45ms |
+| e5-small-v2 | 133MB | 5 | 26 / 27 | 22 / 25 | 63 / 41ms |
+| gte-small | 67MB | 2 | 24 / 24 | 16 / 23 | 53 / 38ms |
+| potion-retrieval-32M (static) | 129MB | 4 | 25 / 26 | 22 / 25 | 0.6 / 0.3ms |
+| bge-base-en-v1.5 | 438MB | 5 | 26 / 27 | 24 / 27 | 102 / 61ms |
+| nomic-embed-text-v1.5, centered | 547MB | 6 | 28 / 28 | 26 / 28 | 100 / 66ms |
+
+- **Every open model but gte-small beats Apple's** by a wide margin. On their own, MiniLM and bge-small put the right link first in 21–22 of 29 queries; Apple's never did.
+- **MiniLM and bge-small tie** here. On the 16 smoke queries bge-small came out slightly ahead (first 16 vs 14 of 16 with 3 related). bge-small is trained for search, with a query prefix; MiniLM for general similarity. Nomic is best but four times the download.
+- **The one meaning query most missed** is "issue tracker": Linear's page says "product development", and only bge-small (7th, centered) came close. Apple's got it second, its only win.
+- **Centering** barely changes the open models, so they don't need it.
+- **Speed:** on the CPU. MLTensor's default, CPU and GPU, was about 6 times slower per link (190ms for both small models) with the same results, and asking for the Neural Engine ran no faster than the CPU. A year of links (3,650) takes about 4 minutes with bge-small and 2 with MiniLM on this Mac; iPhone is untested. The weights are 32-bit; 16-bit would halve the download.
+- **Not measured:** EmbeddingGemma (swift-embeddings doesn't run it), and three models the package couldn't load (Snowflake Arctic Embed S, IBM Granite Embedding small R2, static-retrieval-mrl-en), listed in `OpenModels.swift`.
 
 ### Phase 1: Basic (built 2026-09-29)
 
@@ -309,10 +352,22 @@ What was built (`App/Settings/SettingsView.swift`, `App/Chat/SearchResultsList.s
   - **Return opens the cursor's row on the Mac.** TelegramSwift only acts on the selected row, which looks like a bug.
   - **Picking a row makes it the current result on iPhone too**, so "N of M" and the arrows carry on from it. Telegram-iOS leaves the current result where it was.
 
-### Phase 3: Smart Search
+### Phase 3: Smart Search (built 2026-09-30)
 
-- **Parts:** the opt-in download, the `Embedder` interface, preparing vectors with progress, related results in the list and in stepping, the Smart Search chip, and turning it off.
+- **Parts:** the opt-in download, the `TextEmbedder` interface, preparing vectors with progress, related results in the list and in stepping, the Smart Search chip, and turning it off.
 - **Release:** ship to TestFlight.
+
+What was built (StatemonoKit's `SmartSearch/`, `App/Chat/SmartSearch.swift`, `ChatSearch`, `SearchBar`, `SearchResultsList`, `SearchDropdown`, `SettingsView`):
+- **The model, run by the app itself.** `BertEmbedder` is bge-small's forward pass on the CPU with Accelerate (`cblas_sgemm`), with BERT's uncased WordPiece tokenizer (`WordPieceTokenizer`) and a reader for `.safetensors` that maps the file instead of loading it (`Safetensors`). swift-embeddings, which Phase 0 measured with, would have brought about ten packages into the app, a 40MB prebuilt library among them.
+  - **Checked** against swift-embeddings on all 90 links, the 45 queries and a few odd strings (`SearchEval check`): the same tokens, and vectors with a cosine similarity of at least 0.9999. The one exception is text over 512 tokens, where swift-embeddings drops the final [SEP] and the app keeps it, as Hugging Face's tokenizer does. `eval` gives the app's version the same recall as the reference.
+  - **Speed** on this Mac: 9ms per link, 5ms per query, about 7 times faster than swift-embeddings on `MLTensor`. iPhone speed is to be seen on a device.
+- **The download** (`SearchModelStore`): `config.json`, `vocab.txt` and `model.safetensors` from `huggingface.co/BAAI/bge-small-en-v1.5`, pinned to revision `5c38ec7`, each checked against its SHA-256. They go to Application Support/<bundle id>/Models, excluded from backups. A download task with its own delegate reports progress. It took about 6 seconds here.
+- **Preparing** (`SmartSearch`): while the app is open, 16 links at a time, newest first, off the main thread. Links wait for their preview. A database observation catches new, edited and deleted links and saved previews, and Low Power Mode pauses it.
+- **Searching:** the query's vector is compared with every link's in memory (`AppDatabase.relatedItems`, one matrix-vector product), and the 3 best that keyword search didn't find are added. The vectors are read again only when they or the items change.
+- **Stepping:** through the keyword matches, or the related links when nothing matched, with "1 of 3 related". A related row picked from the list while there are matches jumps without becoming the current result.
+- **The list and dropdown** show the related links under a Related header, after the matches.
+- **The chip** shows in the search panel while Smart Search is off and nothing was found, and opens Settings.
+- **Checked** in the iPhone simulator and a Mac harness, with the 90 test links: the chip, the download and preparing (90 links), "graduation speech" finding Steve Jobs's commencement address through the arrows and the list, a related row opening while there's a match, and turning off deleting the model, the vectors and the setting.
 
 ### Phase 4: Apple Intelligence tags
 
@@ -327,4 +382,7 @@ What was built (`App/Settings/SettingsView.swift`, `App/Chat/SearchResultsList.s
 
 ## Open questions
 
-1. **When to show related results:** in the smoke check, the 3 related links helped only when keyword search found nothing, and otherwise added 3 wrong links after the right one. Proposed: the list's Related section always shows them, but up/down stepping includes them only when there are no keyword matches. To decide once the owner's queries have run.
+1. **When to show related results:** decided 2026-09-30, as proposed, for the owner to test: the list's Related section always shows them, and up/down stepping includes them only when there are no keyword matches (see How results are shown). In Phase 0 the related links helped only when keyword search found nothing, and otherwise added wrong links after the right one.
+2. **Smart Search's model:** decided 2026-09-30, when the owner asked for Smart Search to be built with it: bge-small, downloaded from Hugging Face (Phase 3). Still open:
+   - 16-bit weights would halve the download to about 67MB, but need a copy the app's owner hosts, since the repository has only 32-bit ones. `eval` would check they rank the same.
+   - Speed on an iPhone.

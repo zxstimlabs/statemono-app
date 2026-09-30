@@ -3,7 +3,8 @@ import StatemonoKit
 import SwiftUI
 
 /// TelegramSwift's search results dropdown (`InputContextHelper`, `ContextSearchMessageItem`): the results, newest
-/// first, below the search panel while the search field has focus. At most half the chat tall. The current result is
+/// first, below the search panel while the search field has focus. Smart Search's related links follow under a Related
+/// header, which TelegramSwift has no counterpart for. At most half the chat tall. The current result is
 /// marked in the accent color, and the keyboard cursor (`highlighted`) in gray; arrow keys move the cursor and Return
 /// opens its row (see `SearchField`). A click is handed to `onSelect`.
 struct SearchDropdown: View {
@@ -13,6 +14,7 @@ struct SearchDropdown: View {
     var onSelect: (Message.ID) -> Void
 
     static let rowHeight: CGFloat = 44
+    static let headerHeight: CGFloat = 26
     private static let shape = RoundedRectangle(cornerRadius: 18, style: .continuous)
 
     var body: some View {
@@ -20,22 +22,24 @@ struct SearchDropdown: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(search.rows.enumerated()), id: \.element.id) { index, message in
-                        SearchDropdownRow(
-                            message: message,
-                            terms: search.terms,
-                            isCurrent: message.id == search.current,
-                            isHighlighted: message.id == highlighted,
-                            showsSeparator: index < search.rows.count - 1
-                        )
-                        .frame(height: Self.rowHeight)
-                        .contentShape(Rectangle())
-                        .onTapGesture { onSelect(message.id) }
-                        .id(message.id)
-                        .onAppear { search.loadRows(near: index) }
+                        row(message, showsSeparator: index < search.rows.count - 1)
+                            .onAppear { search.loadRows(near: index) }
+                    }
+                    if !search.relatedRows.isEmpty {
+                        Text("Related")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Theme.searchDropdownDate)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 20)
+                            .frame(height: Self.headerHeight)
+                            .accessibilityAddTraits(.isHeader)
+                        ForEach(Array(search.relatedRows.enumerated()), id: \.element.id) { index, message in
+                            row(message, showsSeparator: index < search.relatedRows.count - 1)
+                        }
                     }
                 }
             }
-            .frame(height: min(CGFloat(search.rows.count) * Self.rowHeight, maxHeight))
+            .frame(height: min(contentHeight, maxHeight))
             // Brings the cursor's row into view, scrolling as little as possible.
             .onChange(of: highlighted) { _, id in
                 if let id { proxy.scrollTo(id) }
@@ -47,6 +51,24 @@ struct SearchDropdown: View {
         }
         .clipShape(Self.shape)
         .chromeBackground(Self.shape)
+    }
+
+    private var contentHeight: CGFloat {
+        CGFloat(search.listRows.count) * Self.rowHeight + (search.relatedRows.isEmpty ? 0 : Self.headerHeight)
+    }
+
+    private func row(_ message: Message, showsSeparator: Bool) -> some View {
+        SearchDropdownRow(
+            message: message,
+            terms: search.terms,
+            isCurrent: message.id == search.current,
+            isHighlighted: message.id == highlighted,
+            showsSeparator: showsSeparator
+        )
+        .frame(height: Self.rowHeight)
+        .contentShape(Rectangle())
+        .onTapGesture { onSelect(message.id) }
+        .id(message.id)
     }
 }
 

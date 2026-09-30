@@ -11,7 +11,7 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 
 ## Status
 - The feed reads from the SQLite database (GRDB) in `Packages/StatemonoKit/Sources/StatemonoKit/Database/`. Messages, previews, and the image index survive relaunches.
-- Built so far: feed with Telegram-style bubbles and link previews, composer, attach menu (items are stubs), message context menu (Copy Text and Delete work), in-chat search over all history with typo tolerance and a results list (iPhone) or dropdown (Mac), a Settings sheet from the header's gear, send animation, paging, app icon, scroll-to-bottom button. On iOS, a hide-keyboard button.
+- Built so far: feed with Telegram-style bubbles and link previews, composer, attach menu (items are stubs), message context menu (Copy Text and Delete work), in-chat search over all history with typo tolerance and a results list (iPhone) or dropdown (Mac), Smart Search (finds links by meaning, downloaded on opt-in), a Settings sheet from the header's gear, send animation, paging, app icon, scroll-to-bottom button. On iOS, a hide-keyboard button.
 - Sending a link fetches its preview on the device (`Packages/StatemonoKit/Sources/StatemonoKit/LinkPreviews/`). X posts and ordinary websites are covered.
 - The iOS target compiles the same `App/` sources but its UI is only partly tuned. Its text follows the system Text Size (see UI reference), its keyboard behaves like Telegram-iOS's (see iOS keyboard), and its bubbles are as wide as Telegram-iOS allows (see UI reference).
 - Stubs: paperclip menu items, mic, and the context menu's Reply, Translate, Edit, Pin, Forward and Select.
@@ -22,18 +22,17 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 3. Metadata: fxtwitter for X, oEmbed (YouTube/TikTok/Vimeo/Spotify), OpenGraph, LPMetadataProvider fallback. **X and OpenGraph websites done.** Still to do: oEmbed and the LPMetadataProvider fallback. Images are cached on disk like Telegram (see Link previews).
 4. Share extension + App Group
 5. Sync: undecided. Options are CloudKit now, my own server (PocketBase/Go) from the start, or no sync in v1. Don't run CloudKit and a server side by side. The server is what lets a Linux (Omarchy/Hyprland) desktop join.
-- Search beyond keywords: planned in `docs/search-plan.md`. Phase 1 (typo tolerance) is built. Phase 0's `Tools/SearchEval` (a command-line package, not part of the apps) measures search on the links in `docs/search-test-links.md`; its recall waits for the owner's queries. Build later phases only when the owner names them.
+- Search beyond keywords: planned in `docs/search-plan.md`. Phases 1 (typo tolerance), 2 (Settings, results list) and 3 (Smart Search) are built. Phase 0's `Tools/SearchEval` (a command-line package, not part of the apps) measures search on the links and 29 queries in `docs/search-test-links.md`. On them Apple's text model found 1 of 7 meaning queries and bge-small found 6, so Smart Search uses bge-small (see Smart Search below). Build later phases only when the owner names them.
   - It's progressive. The app installs light, with nothing bundled, downloaded or running in the background.
   - English only.
   - Typo tolerance is part of Basic search, always on.
-  - Smart Search (Apple's English text model, downloaded on opt-in) and Apple Intelligence tags are separate opt-in steps in a Smart Search section. Unsupported devices and OS versions get an explanation.
-  - A gear button will replace the header's ⋯ on both platforms and open Settings as a sheet (the Mac too, so both feel the same), with the Smart Search section.
+  - Smart Search (bge-small, downloaded on opt-in) and Apple Intelligence tags are separate opt-in steps in the Settings sheet's Search section. Unsupported devices and OS versions get an explanation.
   - Everything runs on the device.
 
 ## UI reference
 - The target is Telegram for macOS, night theme. Colors and sizes in `App/Chat/Theme.swift` (`Theme`, `Metrics`) were measured from 2x screenshots, so measure new screens the same way rather than guessing.
 - Text sizes come from `ChatTextSize` (`Theme.swift`, read through the environment). The Mac keeps its measured 13/12/11/12pt (message, preview, time, day pill). iOS copies Telegram-iOS's "Use System Text Size": the system body size snaps to Telegram's steps (14, 15, 16, 17, 19, 23, 26; 17 by default), messages and the composer use it, previews 14/17 of it, times 11/17, day pills 13/17.
-- Bubble widths: the Mac keeps its measured caps (400pt text, 282pt previews, at least 56pt free on the left). iOS follows Telegram-iOS's `ChatMessageItemWidthFill`: the limit comes from the row's width (`Metrics.bubbleLeadingSpace`), and previews fill that width. Telegram's bubbles reach 43pt from the left edge of an upright phone; the owner found that too wide, so bubbles here leave 17pt more (`Metrics.extraLeadingSpace`) and reach 60pt. Past 500pt a bubble fills 85% of the row, 65% past 680pt.
+- Bubble widths: the Mac keeps its measured caps (400pt text, 282pt previews, at least 56pt free on the left). iOS follows Telegram-iOS's `ChatMessageItemWidthFill`: the limit comes from the row's width (`Metrics.bubbleLeadingSpace`), and previews fill that width. Telegram's bubbles reach 43pt from the left edge of an upright phone; the owner found that too wide, so bubbles here leave 33pt more (`Metrics.extraLeadingSpace`) and reach 76pt (the owner moved it from 60pt to 68pt, then 76pt, on 2026-09-30, for room to tap beside them). Past 500pt a bubble fills 85% of the row, 65% past 680pt.
   - `BubbleRow`, a `Layout`, applies it, because a layout is given the row's width without reading geometry in each bubble. `ChatView` measures the feed's width once (`feedWidth`), only to decode preview images at the width they're drawn.
   - On the right, the bubble ends 10pt from the edge on iOS, as in Telegram-iOS (`Metrics.bubbleTrailing` is 4pt plus the 6pt tail room), and 17pt on the Mac.
 - Bubble content always gets the height it asks for (`CappedWidth` proposes a nil height). Given a fixed height, a VStack splits it among flexible children, and at large text sizes a preview's text lost lines to its image.
@@ -57,7 +56,7 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 - The feed is a window anchored at its oldest loaded message (`observeFeed(from:)`), like Telegram's history view, not "the newest N". With a count window, each new message pushed the oldest out of the top, the content above jumped, and the send slide broke.
   - Launch loads the newest 50.
   - Reaching the top calls `loadOlder()` and moves the start back 50. `FeedScroller.willPrepend()` shifts the scroll position by the added height so nothing moves on screen.
-  - Jumping to an older search result or date moves the start back to just before it.
+  - Jumping to a search result or date keeps 10 messages loaded above it (`ChatStore.jumpMargin`, `loadHistory(before:)`), moving the start back if it's older or too close to the top. Centering the oldest loaded message used to reach the top, and the next page loaded mid-jump: the iPhone ended at the top of history, and the Mac didn't move.
 - The database is at Application Support/<bundle id>/statemono.sqlite, a WAL `DatabasePool`. On the Mac, Application Support is inside the sandbox container (see Config). It moves into the App Group with the share extension (step 4). Opening it registers the tokenizer on every connection (`AppDatabase.configuration`).
 - If the database can't be opened (a damaged file, or a failed migration), the app shouldn't crash. `Library` (`App/Chat/DatabaseErrorView.swift`) shows the error and offers:
   - Try Again.
@@ -107,6 +106,8 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
   - Search and calendar jumps glide with response 0.4, and long jumps first snap to one screen away.
   - Re-targeting keeps velocity. Anything else moving the clip view cancels it, and Reduce Motion skips it.
   - The display link needs `preferredFrameRateRange` set, or it runs well below 120Hz.
+  - SwiftUI's scroll view doesn't see moves made through the clip view's bounds. It keeps the position it last knew (the bottom, from launch) and puts the feed back there when the content changes size, so a page of history loading for a jump threw the feed to the bottom. `FeedScroller.settled()` posts the live-scroll notifications a trackpad scroll would after each of its moves comes to rest, and SwiftUI updates its position from them.
+  - A jump issued while older messages are loading waits for them (`pendingJump` survives the prepend's shift), then glides from the rows' new frames.
 - Search starts in the header's search field (focusing it opens the panel). The panel is an overlay under the field, not part of the top safe-area inset, so opening it doesn't move the feed.
   - There are two text fields, the search field and the composer, and leaving one focuses the other. Closing the search in any way (⌘F toggles it, Escape, ✕, a click in the feed) gives the composer the keyboard, as in Telegram, where the message field is the chat's default responder. On iOS nothing is focused instead, so the keyboard doesn't come up. `ChatFocus` in `ChatView` holds the focus for both fields.
   - Leaving the field with an empty query closes the search. Clicking the feed doesn't take focus from a text field on macOS, so the feed's scroll content has a tap gesture that closes an empty search. A gesture on the `ScrollView` itself never receives the click.
@@ -124,6 +125,18 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
   - It shows while the search field has focus and there are results, at most half the chat tall.
   - The field's arrow keys move its cursor and wrap, Return opens the cursor's row, and Escape clears the cursor before it closes the search.
   - Opening a row, or using the panel's arrows, takes focus away, which closes it.
+
+### Smart Search
+- Smart Search finds links by meaning (docs/search-plan.md, Phase 3). It's off until turned on in Settings, which downloads BAAI's bge-small-en-v1.5 (MIT, 133.7 MB) from Hugging Face. `SearchModel.bgeSmall` pins the revision and each file's SHA-256.
+  - The files go to Application Support/<bundle id>/Models, excluded from backups (`SearchModelStore`). Turning Smart Search off deletes them and every vector, after a confirmation.
+  - The switch is per device, in `UserDefaults` (`smartSearch.enabled`).
+- `BertEmbedder` (StatemonoKit's `SmartSearch/`) runs the model with Accelerate, with its own WordPiece tokenizer and a memory-mapped `.safetensors` reader. Don't bring swift-embeddings into the app: it's about ten packages, a 40MB prebuilt library among them. `Tools/SearchEval` uses it only to check the app's version (`swift run -c release -Xswiftc -enable-testing SearchEval check`).
+  - StatemonoKit defines `ACCELERATE_NEW_LAPACK` with `unsafeFlags`, for the current CBLAS interface. That works because the package is local; a remote dependency can't use unsafe flags.
+  - The download uses a download task with its own session delegate (`FileDownload`). URLSession's async `download(from:delegate:)` never reported progress.
+- `App/Chat/SmartSearch.swift` makes a vector for each link while the app is open: 16 at a time, newest first, off the main thread. Links wait for their preview, and Low Power Mode pauses the work. `AppDatabase.observeSearchContent` catches new links, edits, deletes and saved previews.
+  - Vectors live in `itemVector`, with the model and revision, and the SHA-256 of the text they were made from (`AppDatabase.vectorText`: title, site, description, text). Changed text gets a new vector. Like previews, vectors don't touch `updatedAt` or `isDirty`.
+- A search adds the 3 links closest in meaning that keyword search missed (`ChatSearch.related`). The list and dropdown show them after the matches, under Related. The arrows step through the matches, or through the related links when nothing matched ("1 of 3 related"), because after a right match they were mostly wrong in Phase 0.
+  - While Smart Search is off and nothing is found, the search panel shows a Smart Search chip that opens Settings.
 
 ### Menus
 - The attach menu and a message's context menu share `MenuPanel`, `MenuRow` and `MenuSeparator` (`Menu.swift`). The numbers come from TelegramSwift's `AppMenu`: 28pt rows, 13pt medium, an 18pt icon 15pt in, text at 42pt, 5pt separators, 4pt top and bottom. The 18pt corner radius comes from a screenshot of current Telegram; the July 2025 source says 10.

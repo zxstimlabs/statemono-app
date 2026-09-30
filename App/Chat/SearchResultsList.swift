@@ -4,7 +4,7 @@ import SwiftUI
 import UIKit
 
 /// Telegram-iOS's search results "Show as List" (`ChatInlineSearchResultsListComponent`): the results, newest first, on
-/// an opaque page over the chat. It sits under the header, the search panel and the composer, scrolls to the top when
+/// an opaque page over the chat. Smart Search's related links follow under a Related header. It sits under the header, the search panel and the composer, scrolls to the top when
 /// the results change, and dragging it puts the keyboard away. So does a tap, as on the chat under it. A tap on a row is
 /// handed to `onSelect`.
 struct SearchResultsList: View {
@@ -21,19 +21,14 @@ struct SearchResultsList: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(Array(search.rows.enumerated()), id: \.element.id) { index, message in
-                    Button { onSelect(message.id) } label: {
-                        SearchResultRow(message: message, terms: search.terms)
+                    row(message, isLast: index == search.rows.count - 1)
+                        .onAppear { search.loadRows(near: index) }
+                }
+                if !search.relatedRows.isEmpty {
+                    SearchSectionHeader(title: "Related")
+                    ForEach(Array(search.relatedRows.enumerated()), id: \.element.id) { index, message in
+                        row(message, isLast: index == search.relatedRows.count - 1)
                     }
-                    .buttonStyle(SearchResultRowStyle())
-                    .overlay(alignment: .bottom) {
-                        // Hairlines inset 16pt on both sides; the last runs edge to edge.
-                        let isLast = index == search.rows.count - 1
-                        Rectangle()
-                            .fill(Theme.searchListSeparator)
-                            .frame(height: 1 / displayScale)
-                            .padding(.horizontal, isLast ? 0 : 16)
-                    }
-                    .onAppear { search.loadRows(near: index) }
                 }
             }
             .padding(.top, topInset)
@@ -42,6 +37,40 @@ struct SearchResultsList: View {
         .id(search.resultsVersion)
         .scrollDismissesKeyboard(.immediately)
         .background { Theme.background.ignoresSafeArea() }
+    }
+
+    private func row(_ message: Message, isLast: Bool) -> some View {
+        Button { onSelect(message.id) } label: {
+            SearchResultRow(message: message, terms: search.terms)
+        }
+        .buttonStyle(SearchResultRowStyle())
+        .overlay(alignment: .bottom) {
+            // Hairlines inset 16pt on both sides; the last of a section runs edge to edge.
+            Rectangle()
+                .fill(Theme.searchListSeparator)
+                .frame(height: 1 / displayScale)
+                .padding(.horizontal, isLast ? 0 : 16)
+        }
+    }
+}
+
+/// A section title in the results list, in the style of Telegram-iOS's list section headers: small capitals in gray on
+/// a slightly lighter band.
+private struct SearchSectionHeader: View {
+    let title: LocalizedStringKey
+    @Environment(\.chatTextSize) private var textSize
+
+    var body: some View {
+        Text(title)
+            .textCase(.uppercase)
+            .font(.system(size: textSize.message * 13 / 17))
+            .foregroundStyle(Theme.searchListSecondaryText)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.top, 7)
+            .padding(.bottom, 5)
+            .background(Color.white.opacity(0.04))
+            .accessibilityAddTraits(.isHeader)
     }
 }
 
