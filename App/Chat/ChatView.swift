@@ -15,6 +15,7 @@ struct ChatView: View {
     #if os(iOS)
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var feedFollower = FeedFollower()
+    @State private var contextMenu = FeedContextMenu()
     /// Whether the software keyboard is up, which brings up the button that puts it away.
     @State private var isKeyboardShown = false
     /// How wide the feed's rows are. Bubbles are laid out from it directly (`BubbleRow`); this copy sizes preview images.
@@ -33,7 +34,7 @@ struct ChatView: View {
     #endif
     #if os(macOS)
     @State private var scroller = FeedScroller()
-    /// The open context menu. On iOS, bubbles use the system's context menu instead.
+    /// The open context menu. iOS has its own (`FeedContextMenu`).
     @State private var messageMenu: MessageMenuState?
     #endif
     /// A message waiting for the user to confirm deleting it.
@@ -100,6 +101,17 @@ struct ChatView: View {
                 }
             }
         }
+        #if os(iOS)
+        .overlay {
+            if let presentation = contextMenu.presentation {
+                FeedContextMenuOverlay(presentation: presentation) { item in
+                    contextMenu.didClose()
+                    if let item { perform(item, on: presentation.id) }
+                }
+                .id(presentation.id)
+            }
+        }
+        #endif
         #if os(macOS)
         .overlay {
             if let menu = messageMenu {
@@ -142,6 +154,12 @@ struct ChatView: View {
         #if os(iOS)
         .environment(\.chatTextSize, ChatTextSize(dynamicTypeSize))
         .environment(\.feedWidth, feedWidth)
+        .environment(\.feedContextMenu, contextMenu)
+        .onAppear {
+            contextMenu.message = { id in store.messages.first { $0.id == id } }
+            // As in Telegram-iOS, the keyboard goes away under a message's menu.
+            contextMenu.onOpen = { focus = nil }
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             isKeyboardShown = true
         }
@@ -202,28 +220,16 @@ struct ChatView: View {
                         case .day(let date):
                             DaySeparator(date: date)
                         case .message(let message, let position):
-                            MessageBubble(
+                            FeedMessageRow(
                                 message: message,
                                 position: position,
                                 isFlashed: flashedMessageID == message.id,
                                 isLoadingPreview: store.loadingPreviews.contains(message.id),
+                                pressScale: pressScale(of: message.id),
+                                isExtracted: isInContextMenu(message.id),
                                 onReloadPreview: { store.reloadPreview(for: message.id) }
                             )
-                            #if !os(macOS)
-                            .contextMenu {
-                                ForEach(MessageMenuItem.groups.indices, id: \.self) { index in
-                                    Section {
-                                        ForEach(MessageMenuItem.groups[index]) { item in
-                                            Button(role: item.isDestructive ? .destructive : nil) {
-                                                perform(item, on: message.id)
-                                            } label: {
-                                                Label(item.title, systemImage: item.systemImage)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            #endif
+                            .equatable()
                         }
                     }
                     #if os(macOS)
@@ -243,7 +249,9 @@ struct ChatView: View {
             .coordinateSpace(.named(FeedScroller.contentSpace))
             .background(FeedScrollerAnchor(scroller: scroller))
             #else
+            .coordinateSpace(.named(FeedContextMenu.contentSpace))
             .background(FeedFollowerAnchor(follower: feedFollower))
+            .background(FeedContextMenuAnchor(menu: contextMenu))
             // As in Telegram-iOS, a tap anywhere in the feed puts the keyboard away.
             .background(FeedTapToDismiss(isEnabled: focus != nil) { focus = nil })
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { feedWidth = $0 }
@@ -495,6 +503,24 @@ struct ChatView: View {
         }
     }
 
+    /// Below 1 while a finger holds the message's bubble, before its menu opens (iOS).
+    private func pressScale(of id: Message.ID) -> CGFloat {
+        #if os(iOS)
+        contextMenu.pressScale(for: id)
+        #else
+        1
+        #endif
+    }
+
+    /// Whether the message's bubble is lifted out of the feed into its menu (iOS).
+    private func isInContextMenu(_ id: Message.ID) -> Bool {
+        #if os(iOS)
+        contextMenu.presentation?.id == id
+        #else
+        false
+        #endif
+    }
+
     private var isConfirmingDelete: Binding<Bool> {
         Binding { pendingDelete != nil } set: { if !$0 { pendingDelete = nil } }
     }
@@ -543,6 +569,36 @@ struct ChatView: View {
         #endif
         store.send(draft)
         draft = ""
+    }
+}
+
+/// A message in the feed. It's `Equatable`, comparing only what it shows, so the chat updating for anything else (the
+/// scroll-to-bottom button appearing, a search, the keyboard) doesn't redraw it. The closure isn't compared: it only
+/// captures the message's ID and the chat's shared state.
+private struct FeedMessageRow: View, @MainActor Equatable {
+    let message: Message
+    let position: BubblePosition
+    let isFlashed: Bool
+    let isLoadingPreview: Bool
+    let pressScale: CGFloat
+    let isExtracted: Bool
+    let onReloadPreview: () -> Void
+
+    static func == (a: Self, b: Self) -> Bool {
+        a.message == b.message && a.position == b.position && a.isFlashed == b.isFlashed
+            && a.isLoadingPreview == b.isLoadingPreview && a.pressScale == b.pressScale && a.isExtracted == b.isExtracted
+    }
+
+    var body: some View {
+        MessageBubble(
+            message: message,
+            position: position,
+            isFlashed: isFlashed,
+            isLoadingPreview: isLoadingPreview,
+            pressScale: pressScale,
+            isExtracted: isExtracted,
+            onReloadPreview: onReloadPreview
+        )
     }
 }
 

@@ -36,6 +36,12 @@ enum Theme {
     static let searchDropdownDate = Color(hex: 0xB1C3D5)
     static let searchDropdownSelected = Color(hex: 0x3D6A97)
     static let searchDropdownSeparator = Color(hex: 0x213040)
+
+    /// A message's menu on iPhone: Telegram-iOS's dark `contextMenu` colors. The panel fill is for iOS before 26,
+    /// where Telegram has no glass.
+    static let contextMenuDestructive = Color(hex: 0xEB5545)
+    static let contextMenuSeparator = Color.white.opacity(0.15)
+    static let contextMenuFill = Color(hex: 0x1C1C1C).opacity(0.85)
 }
 
 enum Metrics {
@@ -74,11 +80,17 @@ enum Metrics {
         // the row is up to 500pt wide, and 85% of it past that, 65% once the chat is wider than 680pt. Telegram checks
         // 680 against the whole width, safe areas included; on every iPhone the row lands on the same side of it.
         // Of that, the bubble's frame gets all but 9pt, 3pt from the trailing edge, and the drawn bubble starts 1pt
-        // inside the frame. On a phone held upright, bubbles reach 43pt from the left edge.
+        // inside the frame, so Telegram's bubbles reach 43pt from the left edge of an upright phone. The owner found
+        // that too wide, so bubbles here leave `extraLeadingSpace` more: 60pt.
         let fill = rowWidth <= 500 ? rowWidth - 36 : floor(rowWidth * (rowWidth > 680 ? 0.65 : 0.85))
-        return rowWidth - fill + 7
+        return rowWidth - fill + 7 + extraLeadingSpace
         #endif
     }
+
+    #if os(iOS)
+    /// Room beyond Telegram-iOS's on a bubble's leading side.
+    static let extraLeadingSpace: CGFloat = 17
+    #endif
 }
 
 /// Text sizes in the chat. The Mac keeps the sizes measured from Telegram for macOS. On iOS they follow Telegram-iOS

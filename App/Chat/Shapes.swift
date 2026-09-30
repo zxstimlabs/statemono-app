@@ -7,6 +7,14 @@ struct BubbleShape: Shape {
     var bottomTrailingRadius = Metrics.bubbleRadius
     var hasTail = true
 
+    /// A bubble's shape for where it sits in its group: only the last gets a tail, and bubbles in a run share
+    /// smaller corners on their trailing side.
+    init(position: BubblePosition) {
+        topTrailingRadius = position.isFirstInGroup ? Metrics.bubbleRadius : Metrics.groupedRadius
+        bottomTrailingRadius = Metrics.groupedRadius
+        hasTail = position.isLastInGroup
+    }
+
     func path(in rect: CGRect) -> Path {
         let r = Metrics.bubbleRadius
         let body = CGRect(x: rect.minX, y: rect.minY, width: rect.width - Metrics.tailWidth, height: rect.height)

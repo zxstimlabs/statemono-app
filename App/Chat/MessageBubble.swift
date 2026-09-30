@@ -1,10 +1,51 @@
 import StatemonoKit
 import SwiftUI
 
+/// A message's row in the feed: its bubble at the trailing edge (`BubbleRow`).
 struct MessageBubble: View {
     let message: Message
     let position: BubblePosition
     /// Briefly lit up when search lands on this message.
+    var isFlashed = false
+    var isLoadingPreview = false
+    /// Below 1 while a long press holds the bubble, before its context menu opens (iOS).
+    var pressScale: CGFloat = 1
+    /// Hidden while a copy of the bubble shows in its context menu (iOS).
+    var isExtracted = false
+    var onReloadPreview: () -> Void = {}
+    #if os(iOS)
+    @Environment(\.feedContextMenu) private var contextMenu
+    #endif
+
+    var body: some View {
+        BubbleRow {
+            BubbleView(
+                message: message,
+                position: position,
+                isFlashed: isFlashed,
+                isLoadingPreview: isLoadingPreview,
+                onReloadPreview: onReloadPreview
+            )
+            .scaleEffect(pressScale)
+            .opacity(isExtracted ? 0 : 1)
+            #if os(iOS)
+            // For the context menu (`FeedContextMenu`). Content coordinates don't change while scrolling, so this
+            // runs on layout changes only.
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(FeedContextMenu.contentSpace)) } action: { frame in
+                contextMenu?.report(message.id, frame: frame, position: position)
+            }
+            .onDisappear { contextMenu?.forget(message.id) }
+            .accessibilityAction(named: "Message Menu") { contextMenu?.openMenu(for: message.id) }
+            #endif
+        }
+        .padding(.top, position.isFirstInGroup ? 4 : 2)
+    }
+}
+
+/// The bubble itself, without its row. The feed puts it in a row; on iOS the context menu shows it on its own.
+struct BubbleView: View {
+    let message: Message
+    let position: BubblePosition
     var isFlashed = false
     var isLoadingPreview = false
     var onReloadPreview: () -> Void = {}
@@ -12,11 +53,7 @@ struct MessageBubble: View {
     @Environment(\.chatTextSize) private var textSize
 
     private var shape: BubbleShape {
-        BubbleShape(
-            topTrailingRadius: position.isFirstInGroup ? Metrics.bubbleRadius : Metrics.groupedRadius,
-            bottomTrailingRadius: Metrics.groupedRadius,
-            hasTail: position.isLastInGroup
-        )
+        BubbleShape(position: position)
     }
 
     /// Between the bubble's edges and its content. The trailing side includes the tail.
@@ -31,24 +68,21 @@ struct MessageBubble: View {
     }
 
     var body: some View {
-        BubbleRow {
-            CappedWidth(max: contentMaxWidth) {
-                content
-            }
-            .overlay(alignment: .topTrailing) {
-                if message.link != nil {
-                    ReloadButton(isLoading: isLoadingPreview, action: onReloadPreview)
-                }
-            }
-            .padding(Self.insets)
-            .background { BubbleFill(shape: shape) }
-            .overlay {
-                if isFlashed {
-                    shape.fill(.white.opacity(0.18)).transition(.opacity)
-                }
+        CappedWidth(max: contentMaxWidth) {
+            content
+        }
+        .overlay(alignment: .topTrailing) {
+            if message.link != nil {
+                ReloadButton(isLoading: isLoadingPreview, action: onReloadPreview)
             }
         }
-        .padding(.top, position.isFirstInGroup ? 4 : 2)
+        .padding(Self.insets)
+        .background { BubbleFill(shape: shape) }
+        .overlay {
+            if isFlashed {
+                shape.fill(.white.opacity(0.18)).transition(.opacity)
+            }
+        }
     }
 
     @ViewBuilder private var content: some View {
@@ -88,17 +122,33 @@ struct MessageBubble: View {
 /// Fills the bubble with Telegram's window-pinned gradient, approximated per bubble: the lower a bubble sits in
 /// the window, the darker it is. The shade is set in `visualEffect`, which runs at render time. A GeometryReader
 /// here re-ran every bubble's body on every scroll frame and dropped a 200-message feed to ~20fps.
+///
+/// A copy shown outside the feed, in the iOS context menu, is given the shade its bubble had in the feed instead
+/// (`bubbleShade`).
 private struct BubbleFill: View {
     let shape: BubbleShape
+    @Environment(\.bubbleShade) private var fixedShade
 
     var body: some View {
-        shape.fill(Theme.bubbleTop)
-            .visualEffect { content, proxy in
-                let height = max(proxy.bounds(of: .scrollView)?.height ?? 1, 1)
-                let position = min(max(proxy.frame(in: .scrollView).midY / height, 0), 1)
-                return content.brightness(Theme.bubbleBottomBrightness * position)
-            }
+        if let fixedShade {
+            shape.fill(Theme.bubbleTop).brightness(fixedShade)
+        } else {
+            shape.fill(Theme.bubbleTop)
+                .visualEffect { content, proxy in
+                    content.brightness(bubbleShade(midY: proxy.frame(in: .scrollView).midY, height: proxy.bounds(of: .scrollView)?.height ?? 1))
+                }
+        }
     }
+}
+
+/// The shade for a bubble centered `midY` down a feed `height` tall, as `BubbleFill` draws it there.
+func bubbleShade(midY: CGFloat, height: CGFloat) -> Double {
+    Theme.bubbleBottomBrightness * min(max(midY / max(height, 1), 0), 1)
+}
+
+extension EnvironmentValues {
+    /// A fixed brightness for bubble fills, for a bubble copied out of the feed.
+    @Entry var bubbleShade: Double?
 }
 
 /// Fetches a link's preview again. It sits in the bubble's top-right corner, sized and colored like the time and
@@ -178,7 +228,7 @@ private struct LinkPreviewView: View {
         #else
         // A preview fills its bubble, which on iOS is as wide as the row allows. Zero until the feed is measured.
         let bubble = feedWidth - Metrics.bubbleLeadingSpace(rowWidth: feedWidth) - Metrics.bubbleTrailing
-        return max(0, bubble - MessageBubble.insets.leading - MessageBubble.insets.trailing - 13)
+        return max(0, bubble - BubbleView.insets.leading - BubbleView.insets.trailing - 13)
         #endif
     }
 
