@@ -15,7 +15,7 @@ settings:
     DEVELOPMENT_TEAM: 8G6DC3A5B8
     SWIFT_VERSION: "6.0"
     MARKETING_VERSION: "0.1.16"
-    CURRENT_PROJECT_VERSION: "18"
+    CURRENT_PROJECT_VERSION: "20"
 
 packages:
   StatemonoKit:
@@ -28,12 +28,23 @@ targets:
     sources: [App]
     dependencies:
       - package: StatemonoKit
+    # iCloud sync (docs/sync-plan.md): CloudKit in the container iCloud.$(APP_BUNDLE_ID), and push, which CKSyncEngine
+    # needs to hear about other devices' changes. Export for the App Store switches aps-environment to production.
+    entitlements:
+      path: Config/Statemono-iOS.entitlements
+      properties:
+        aps-environment: development
+        com.apple.developer.icloud-container-identifiers: [iCloud.$(APP_BUNDLE_ID)]
+        com.apple.developer.icloud-services: [CloudKit]
     settings:
       base:
         PRODUCT_NAME: Statemono
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: YES
+        # Merged into the generated Info.plist: the iCloud container's name for the app, and the background mode for
+        # CloudKit's silent pushes.
+        INFOPLIST_FILE: Config/Statemono-iOS-Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: Statemono
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
@@ -54,11 +65,17 @@ targets:
       properties:
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
+        # iCloud sync, as on iOS.
+        com.apple.developer.aps-environment: development
+        com.apple.developer.icloud-container-identifiers: [iCloud.$(APP_BUNDLE_ID)]
+        com.apple.developer.icloud-services: [CloudKit]
     settings:
       base:
         PRODUCT_NAME: Statemono
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
         GENERATE_INFOPLIST_FILE: YES
+        # Merged into the generated Info.plist: the iCloud container's name for the app.
+        INFOPLIST_FILE: Config/Statemono-macOS-Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: Statemono
         # App Store Connect rejects Mac builds without a category.
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity

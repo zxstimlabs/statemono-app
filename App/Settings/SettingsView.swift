@@ -1,9 +1,11 @@
 import SwiftUI
 
 /// Settings, a sheet over the chat on both platforms, opened by the header's gear (and ⌘, on the Mac). Its first page
-/// lists the sections, each opening its own page, like Telegram's settings and the system's: Appearance and Search.
+/// lists the sections, each opening its own page, like Telegram's settings and the system's: iCloud on its own at the
+/// top, as the system puts the account, then Appearance and Search.
 struct SettingsView: View {
     let smartSearch: SmartSearch
+    let sync: ICloudSync
     @Environment(\.dismiss) private var dismiss
     @AppStorage(AppAppearance.key) private var appearance = AppAppearance.system
 
@@ -29,6 +31,17 @@ struct SettingsView: View {
     private var pages: some View {
         NavigationStack {
             Form {
+                Section {
+                    NavigationLink {
+                        ICloudSettings(sync: sync)
+                    } label: {
+                        LabeledContent {
+                            Text(sync.summary)
+                        } label: {
+                            SettingsLabel("iCloud", systemImage: "icloud.fill", color: Color(hex: 0x0079FF))
+                        }
+                    }
+                }
                 Section {
                     NavigationLink {
                         AppearanceSettings()
@@ -81,6 +94,40 @@ private struct SettingsLabel: View {
                 .frame(width: Self.side, height: Self.side)
                 .background(color, in: RoundedRectangle(cornerRadius: Self.radius, style: .continuous))
         }
+    }
+}
+
+/// A row with a title, a status line under it, an optional note, and a control such as a switch on its trailing side.
+struct SettingsRow<Control: View>: View {
+    let title: LocalizedStringKey
+    let status: LocalizedStringKey
+    var note: LocalizedStringKey?
+    let control: Control
+
+    init(title: LocalizedStringKey, status: LocalizedStringKey, note: LocalizedStringKey? = nil, @ViewBuilder control: () -> Control) {
+        self.title = title
+        self.status = status
+        self.note = note
+        self.control = control()
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                Text(status)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                if let note {
+                    Text(note)
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            control.labelsHidden()
+        }
+        .padding(.vertical, 2)
     }
 }
 

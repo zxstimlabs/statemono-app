@@ -21,17 +21,23 @@ final class ChatStore {
     @ObservationIgnored let database: AppDatabase
     /// Finds links by meaning, once turned on in Settings.
     @ObservationIgnored let smartSearch: SmartSearch
+    /// Syncs messages through iCloud (docs/sync-plan.md). Its changes reach the feed through the database, like sends.
+    @ObservationIgnored let sync: ICloudSync
     @ObservationIgnored private let previews: LinkPreviewFetcher?
     /// The oldest loaded message's date; nil loads all of history.
     @ObservationIgnored private var start: Date?
     @ObservationIgnored private var observation: FeedObservation?
     /// Previews that failed this session, so they aren't retried in a loop. The reload button still retries them.
     @ObservationIgnored private var failedPreviews: Set<Message.ID> = []
+    /// Set while the reader moves the window's start back, which is the one time it should grow by more than a page at
+    /// once. See `show(_:)`.
+    @ObservationIgnored private var isLoadingHistory = false
 
     init(database: AppDatabase, previews: LinkPreviewFetcher?) {
         self.database = database
         self.previews = previews
         smartSearch = SmartSearch(database: database)
+        sync = ICloudSync(database: database)
         start = try? database.feedStart(newest: Self.pageSize)
         observe()
     }
@@ -40,7 +46,7 @@ final class ChatStore {
     func loadOlder() {
         guard hasOlder, let start else { return }
         self.start = try? database.feedStart(before: start, adding: Self.pageSize)
-        observe()
+        observeHistory()
     }
 
     /// Messages kept loaded above one the chat jumps to. Centering a message at the very top of what's loaded would
@@ -59,7 +65,7 @@ final class ChatStore {
         guard newStart.map({ $0 < start }) ?? true else { return }
         willPrepend()
         self.start = newStart
-        observe()
+        observeHistory()
     }
 
     func send(_ text: String) {
@@ -92,6 +98,13 @@ final class ChatStore {
 
     // MARK: - Private
 
+    /// Observes from the new start; the page arrives before this returns.
+    private func observeHistory() {
+        isLoadingHistory = true
+        observe()
+        isLoadingHistory = false
+    }
+
     /// The first page arrives before this returns, so the feed never shows empty for a frame.
     private func observe() {
         observation?.cancel()
@@ -101,6 +114,13 @@ final class ChatStore {
     }
 
     private func show(_ page: FeedPage) {
+        // Synced messages can arrive by the thousand inside the window. The feed isn't lazy, so when it would grow by
+        // more than a page at once, other than by loading history, it goes back to the newest page.
+        if !isLoadingHistory, page.entries.count > messages.count + Self.pageSize {
+            start = try? database.feedStart(newest: Self.pageSize)
+            observe()
+            return
+        }
         messages = page.entries.map(Message.init)
         hasOlder = page.hasOlder
         // Links saved without a preview, because the app quit mid-fetch or the fetch failed, get another try.

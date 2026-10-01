@@ -8,11 +8,10 @@ import Foundation
 public final class MediaStore: Sendable {
     public static let shared = MediaStore(directory: MediaStore.defaultDirectory)
 
-    /// Application Support/<bundle id>/Media. Moves into the App Group container with the share extension (plan step 4).
+    /// Application Support/<bundle id>/Media, next to the database (`DatabaseLocation.appDataDirectory`). Moves into the
+    /// App Group container with the share extension (plan step 4).
     public static var defaultDirectory: URL {
-        URL.applicationSupportDirectory
-            .appending(path: Bundle.main.bundleIdentifier ?? "Statemono")
-            .appending(path: "Media")
+        DatabaseLocation.appDataDirectory.appending(path: "Media")
     }
 
     let directory: URL

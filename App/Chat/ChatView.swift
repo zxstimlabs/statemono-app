@@ -144,7 +144,7 @@ struct ChatView: View {
             Text("Delete selected message?")
         }
         .sheet(isPresented: $showsSettings) {
-            SettingsView(smartSearch: store.smartSearch)
+            SettingsView(smartSearch: store.smartSearch, sync: store.sync)
         }
         #if os(macOS)
         // ⌘, and the app menu's Settings… item open the same sheet (`SettingsCommands`).

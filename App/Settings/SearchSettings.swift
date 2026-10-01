@@ -99,7 +99,7 @@ struct SearchSettings: View {
     private static let laterBuild: LocalizedStringKey = "Arrives in a later build."
 
     private func row(_ title: LocalizedStringKey, status: LocalizedStringKey, note: LocalizedStringKey? = nil) -> some View {
-        row(title, status: status, note: note) { EmptyView() }
+        SettingsRow(title: title, status: status, note: note) { EmptyView() }
     }
 
     private func row(
@@ -108,22 +108,7 @@ struct SearchSettings: View {
         note: LocalizedStringKey? = nil,
         @ViewBuilder control: () -> some View
     ) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                Text(status)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                if let note {
-                    Text(note)
-                        .font(.footnote)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            control().labelsHidden()
-        }
-        .padding(.vertical, 2)
+        SettingsRow(title: title, status: status, note: note, control: control)
     }
 }
 

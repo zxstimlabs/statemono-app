@@ -8,6 +8,7 @@ import Synchronization
 ///   in `MediaStore` and drives cleanup (Telegram's StorageBox).
 /// - `itemSearch`: an FTS5 index over item text and preview text, with the đ → d fix.
 /// - `itemVector`: Smart Search's vector for each item, while Smart Search is on (`AppDatabase+Vectors`).
+/// - `itemSync` and `syncState`: what the sync backend has, and its saved state (`AppDatabase+Sync`).
 public final class AppDatabase: Sendable {
     let writer: any DatabaseWriter
     let media: MediaStore
@@ -113,6 +114,19 @@ public final class AppDatabase: Sendable {
                 // 32-bit floats, in this device's byte order: vectors never leave the device.
                 t.column("vector", .blob).notNull()
                 t.column("computedAt", .datetime).notNull()
+            }
+        }
+        // iCloud sync (docs/sync-plan.md). Only tables, like v2, so the share extension stays fast.
+        migrator.registerMigration("v3 sync") { db in
+            // The sync backend's metadata for each item it has, such as CloudKit's record system fields.
+            try db.create(table: "itemSync") { t in
+                t.primaryKey("itemRowID", .integer).references("item", onDelete: .cascade)
+                t.column("systemFields", .blob).notNull()
+            }
+            // Each backend's saved state, such as `CKSyncEngine`'s, so it resumes where it left off.
+            try db.create(table: "syncState") { t in
+                t.primaryKey("backend", .text)
+                t.column("data", .blob).notNull()
             }
         }
         return migrator
@@ -261,7 +275,19 @@ public struct DatabaseLocation: Sendable {
     }
 
     public static var `default`: DatabaseLocation {
-        DatabaseLocation(directory: URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? "Statemono"))
+        DatabaseLocation(directory: appDataDirectory)
+    }
+
+    /// Application Support/<bundle id>, where the database and cached media live. Debug builds can be pointed at
+    /// another folder with the environment variable STATEMONO_DATA_DIR, to run two copies side by side as two devices,
+    /// as the iCloud sync test does.
+    public static var appDataDirectory: URL {
+        #if DEBUG
+        if let path = ProcessInfo.processInfo.environment["STATEMONO_DATA_DIR"] {
+            return URL(fileURLWithPath: path)
+        }
+        #endif
+        return URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? "Statemono")
     }
 
     public var file: URL {
