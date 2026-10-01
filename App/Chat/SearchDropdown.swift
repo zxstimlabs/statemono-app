@@ -92,7 +92,7 @@ private struct SearchDropdownRow: View {
                 }
                 Text(snippet(content))
                     .font(.system(size: 13))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(isCurrent ? .white : Theme.text)
             }
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -113,11 +113,11 @@ private struct SearchDropdownRow: View {
         }
     }
 
-    /// The text is already white, so matches are marked as in the bubbles, with a background.
+    /// The text is already in the text color, so matches are marked with a background, as in the bubbles.
     private func snippet(_ content: SearchRowContent) -> AttributedString {
         var text = AttributedString(content.snippet)
         for match in content.matches {
-            if let range = Range(match, in: text) { text[range].backgroundColor = Theme.searchHighlight }
+            if let range = Range(match, in: text) { text[range].backgroundColor = Theme.searchDropdownHighlight }
         }
         return text
     }

@@ -3,45 +3,67 @@ import SwiftUI
 import UIKit
 #endif
 
-/// Telegram's night theme, measured from a 2x screenshot of Saved Messages on macOS.
+/// Telegram's colors, in two themes that follow the window's appearance (Settings › Appearance, `AppAppearance`).
+/// Night was measured from a 2x screenshot of Saved Messages on macOS. Day is Telegram's "Day" theme, taken from
+/// TelegramSwift's `whitePalette` and Telegram-iOS's `DefaultDayPresentationTheme`, not yet checked against a screenshot.
+/// Inside a bubble everything stays white in both, as in Telegram's Day.
 enum Theme {
-    static let background = Color(hex: 0x12181F)
+    /// Day: Telegram's plain white `chatBackground`, the Day theme's default wallpaper on iOS too.
+    static let background = Color(light: Color(hex: 0xFFFFFF), dark: Color(hex: 0x12181F))
+    /// Text and icons over the chat and its glass. Day: black, as are Telegram-iOS's input panel controls.
+    static let text = Color(light: .black, dark: .white)
     /// Outgoing bubbles share one gradient pinned to the window, #4B6DA7 at the top to #42639C at the bottom,
     /// so a bubble's color depends on where it sits. The bottom is the top darkened by ~10/255 per channel.
-    static let bubbleTop = Color(hex: 0x4B6DA7)
+    /// Day: TelegramSwift's outgoing #4C91C7, shaded the same way.
+    static let bubbleTop = Color(light: Color(hex: 0x4C91C7), dark: Color(hex: 0x4B6DA7))
     static let bubbleBottomBrightness = -0.04
-    /// Header, composer, and day pills: a dark tint over a blur, with a hairline border.
-    static let chromeFill = Color(hex: 0x1B232D).opacity(0.85)
-    static let chromeBorder = Color.white.opacity(0.11)
-    /// Menus: TelegramSwift's night palette tints the blur with its background (#18222D) at 70%, and draws the hover
-    /// highlight and separators in its grayIcon (#B1C3D5) at 15% and 10%.
-    static let menuTint = Color(hex: 0x18222D).opacity(0.7)
-    static let menuHighlight = Color(hex: 0xB1C3D5).opacity(0.15)
-    static let menuSeparator = Color(hex: 0xB1C3D5).opacity(0.1)
-    /// Telegram's redUI. A screenshot shows it as #DE6560, in the display's color space rather than sRGB.
-    static let destructive = Color(hex: 0xEF5B5B)
-    static let searchFieldFill = Color(hex: 0x4C678F).opacity(0.1)
+    /// Header, composer, and day pills: a tint over a blur, with a hairline border. Day: Telegram-iOS's floating
+    /// history buttons (`historyNavigation`), #F7F7F7 with a #C8C7CC border.
+    static let chromeFill = Color(light: Color(hex: 0xF7F7F7).opacity(0.85), dark: Color(hex: 0x1B232D).opacity(0.85))
+    static let chromeBorder = Color(light: Color(hex: 0xC8C7CC), dark: .white.opacity(0.11))
+    /// The floating buttons' icons. Day: Telegram-iOS's `historyNavigation` foreground.
+    static let floatingButtonIcon = Color(light: Color(hex: 0x88888D), dark: .white)
+    /// Menus: TelegramSwift tints the blur with its background at 70%, and draws the hover highlight and separators in
+    /// its grayIcon at 15% and 10%. Night: #18222D and #B1C3D5. Day: #FFFFFF and #9E9E9E.
+    static let menuTint = Color(light: Color(hex: 0xFFFFFF).opacity(0.7), dark: Color(hex: 0x18222D).opacity(0.7))
+    static let menuHighlight = Color(light: Color(hex: 0x9E9E9E).opacity(0.15), dark: Color(hex: 0xB1C3D5).opacity(0.15))
+    static let menuSeparator = Color(light: Color(hex: 0x9E9E9E).opacity(0.1), dark: Color(hex: 0xB1C3D5).opacity(0.1))
+    /// Telegram's redUI. A screenshot shows night's as #DE6560, in the display's color space rather than sRGB.
+    static let destructive = Color(light: Color(hex: 0xFF3B30), dark: Color(hex: 0xEF5B5B))
+    /// Day: Telegram-iOS's search field fill.
+    static let searchFieldFill = Color(light: .black.opacity(0.06), dark: Color(hex: 0x4C678F).opacity(0.1))
+    /// Behind search matches in bubbles, which are blue in both themes.
     static let searchHighlight = Color.white.opacity(0.3)
-    static let secondaryText = Color(hex: 0xC3D1E3)
+    /// Day: TelegramSwift's grayText.
+    static let secondaryText = Color(light: Color(hex: 0x999999), dark: Color(hex: 0xC3D1E3))
     static let avatarTop = Color(hex: 0xACE1FB)
     static let avatarBottom = Color(hex: 0x74B4F6)
-    static let accent = Color(hex: 0x5AA3F0)
+    static let accent = Color(light: Color(hex: 0x2481CC), dark: Color(hex: 0x5AA3F0))
 
-    /// Search results on iPhone: Telegram-iOS's dark `chatList` message and date text (#8D8E93) and its separator
-    /// (#545458 at 55%).
-    static let searchListSecondaryText = Color(hex: 0x8D8E93)
-    static let searchListSeparator = Color(hex: 0x545458).opacity(0.55)
-    /// Search results on the Mac: TelegramSwift's night palette. `grayText` for dates, `accentSelect` behind the current
-    /// result, and `border` between rows.
-    static let searchDropdownDate = Color(hex: 0xB1C3D5)
-    static let searchDropdownSelected = Color(hex: 0x3D6A97)
-    static let searchDropdownSeparator = Color(hex: 0x213040)
+    /// Search results on iPhone: Telegram-iOS's `chatList` message and date text and its separator. Night: #8D8E93,
+    /// #545458 at 55%. Day: #8E8E93, #C8C7CC.
+    static let searchListSecondaryText = Color(light: Color(hex: 0x8E8E93), dark: Color(hex: 0x8D8E93))
+    static let searchListSeparator = Color(light: Color(hex: 0xC8C7CC), dark: Color(hex: 0x545458).opacity(0.55))
+    /// The band behind a section title, a shade off the background.
+    static let searchListHeaderFill = Color(light: .black.opacity(0.03), dark: .white.opacity(0.04))
+    /// A pressed row. Day: Telegram-iOS's `chatList` highlight.
+    static let searchListPressed = Color(light: Color(hex: 0xE5E5EA), dark: .white.opacity(0.06))
+    /// Search results on the Mac: TelegramSwift's `grayText` for dates, `accentSelect` behind the current result, and
+    /// `border` between rows.
+    static let searchDropdownDate = Color(light: Color(hex: 0x999999), dark: Color(hex: 0xB1C3D5))
+    static let searchDropdownSelected = Color(light: Color(hex: 0x4C91C7), dark: Color(hex: 0x3D6A97))
+    static let searchDropdownSeparator = Color(light: Color(hex: 0xEAEAEA), dark: Color(hex: 0x213040))
+    /// Behind matches in the dropdown's text. Day: TelegramSwift's text selection color (`selectTextBubble_incoming`).
+    static let searchDropdownHighlight = Color(light: Color(hex: 0xCCDDEA), dark: .white.opacity(0.3))
 
-    /// A message's menu on iPhone: Telegram-iOS's dark `contextMenu` colors. The panel fill is for iOS before 26,
+    /// A message's menu on iPhone: Telegram-iOS's `contextMenu` colors. The panel fill is for iOS before 26,
     /// where Telegram has no glass.
-    static let contextMenuDestructive = Color(hex: 0xEB5545)
-    static let contextMenuSeparator = Color.white.opacity(0.15)
-    static let contextMenuFill = Color(hex: 0x1C1C1C).opacity(0.85)
+    static let contextMenuDestructive = Color(light: Color(hex: 0xFF3B30), dark: Color(hex: 0xEB5545))
+    static let contextMenuSeparator = Color(light: Color(hex: 0x3C3C43).opacity(0.2), dark: .white.opacity(0.15))
+    static let contextMenuFill = Color(light: Color(hex: 0xF9F9F9).opacity(0.78), dark: Color(hex: 0x1C1C1C).opacity(0.85))
+    static let contextMenuPressed = Color(light: Color(hex: 0x3C3C43).opacity(0.2), dark: .white.opacity(0.1))
+    /// Over the blurred chat behind the menu.
+    static let contextMenuDim = Color(light: Color(hex: 0x000A26).opacity(0.2), dark: .black.opacity(0.6))
 }
 
 enum Metrics {
@@ -142,6 +164,17 @@ extension Color {
             green: Double((hex >> 8) & 0xFF) / 255,
             blue: Double(hex & 0xFF) / 255
         )
+    }
+
+    /// `light` in light mode and `dark` in dark mode, resolved wherever the color is drawn.
+    init(light: Color, dark: Color) {
+        #if os(macOS)
+        let (light, dark) = (NSColor(light), NSColor(dark))
+        self.init(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light })
+        #else
+        let (light, dark) = (UIColor(light), UIColor(dark))
+        self.init(uiColor: UIColor { $0.userInterfaceStyle == .dark ? dark : light })
+        #endif
     }
 }
 

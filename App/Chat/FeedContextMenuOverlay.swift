@@ -45,8 +45,8 @@ struct FeedContextMenuOverlay: View {
             )
             ZStack {
                 BlurBackdrop(isShown: isBackdropShown)
-                // Telegram's dark `contextMenu.dimColor`.
-                Color.black.opacity(isBackdropShown ? 0.6 : 0)
+                // Telegram's `contextMenu.dimColor`.
+                Theme.contextMenuDim.opacity(isBackdropShown ? 1 : 0)
                 ScrollView {
                     content(layout, width: proxy.size.width)
                 }
@@ -215,7 +215,7 @@ private struct ContextActionList: View {
                                 .padding(.leading, 8)
                             Spacer(minLength: 18)
                         }
-                        .foregroundStyle(item.isDestructive ? Theme.contextMenuDestructive : .white)
+                        .foregroundStyle(item.isDestructive ? Theme.contextMenuDestructive : Theme.text)
                         .frame(height: rowHeight)
                         .contentShape(Rectangle())
                     }
@@ -239,14 +239,14 @@ private struct ContextActionStyle: ButtonStyle {
         configuration.label
             .background {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.white.opacity(configuration.isPressed ? 0.1 : 0))
+                    .fill(Theme.contextMenuPressed.opacity(configuration.isPressed ? 1 : 0))
                     .padding(.horizontal, 10)
                     .animation(.easeInOut(duration: 0.2), value: configuration.isPressed)
             }
     }
 }
 
-/// Telegram's glass on iOS 26 and later. Before that, its dark panel over a blur, with a faint shadow.
+/// Telegram's glass on iOS 26 and later. Before that, its panel over a blur, with a faint shadow.
 private struct ContextActionBackground<S: Shape>: View {
     let shape: S
 
@@ -277,7 +277,7 @@ private struct BlurBackdrop: UIViewRepresentable {
     func updateUIView(_ view: UIVisualEffectView, context: Context) {
         guard context.coordinator.isShown != isShown else { return }
         context.coordinator.isShown = isShown
-        let effect = isShown ? UIBlurEffect(style: .systemUltraThinMaterialDark) : nil
+        let effect = isShown ? UIBlurEffect(style: .systemUltraThinMaterial) : nil
         UIView.animate(withDuration: 0.2, delay: 0, options: [.curveEaseInOut, .beginFromCurrentState]) {
             view.effect = effect
         }

@@ -42,7 +42,7 @@ struct FeedButtons: View {
                 button("Hide Keyboard", action: onHideKeyboard) {
                     Image(systemName: "keyboard.chevron.compact.down")
                         .font(.system(size: 16))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.floatingButtonIcon)
                 }
             }
             if let searchArrows {
@@ -65,7 +65,7 @@ struct FeedButtons: View {
     /// Telegram's chevron: 18×9, sitting 1.5pt below center.
     private var chevron: some View {
         DownChevron()
-            .stroke(.white, lineWidth: Self.chevronWidth)
+            .stroke(Theme.floatingButtonIcon, lineWidth: Self.chevronWidth)
             .frame(width: 18, height: 9)
             .offset(y: 1.5)
     }

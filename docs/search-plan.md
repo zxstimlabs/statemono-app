@@ -1,6 +1,6 @@
 # Search plan: progressive search
 
-Status: draft, updated 2026-09-30. Phases 1 (typo tolerance), 2 (Settings and the results list) and 3 (Smart Search, with bge-small) are built. Phase 0 is done: on 29 queries Apple's text model found 1 of 7 meaning queries and bge-small found 6, so Smart Search uses bge-small (see Phase 0 results and Phase 3).
+Status: draft, updated 2026-10-01. Phases 1 (typo tolerance), 2 (Settings and the results list) and 3 (Smart Search, with bge-small) are built. Phase 0 is done: on 29 queries Apple's text model found 1 of 7 meaning queries and bge-small found 6, so Smart Search uses bge-small (see Phase 0 results and Phase 3). Phase 3b, planned: test Spotlight's semantic search, Apple's model with nothing to download, as a replacement for bge-small.
 
 ## The idea
 
@@ -23,7 +23,7 @@ In-chat search goes through the FTS5 table `itemSearch` (`AppDatabase.search`).
 | Question | Decision |
 |---|---|
 | Rollout | Progressive: light by default, opt-in steps in a Smart Search section, on-device only, with explanations for unsupported devices |
-| Engine for meaning-based search | BAAI's bge-small-en-v1.5, downloaded from Hugging Face when Smart Search is turned on, behind a swappable interface (`TextEmbedder`). Apple's `NLContextualEmbedding` was the plan until Phase 0 measured it (owner, 2026-09-30) |
+| Engine for meaning-based search | BAAI's bge-small-en-v1.5, downloaded from Hugging Face when Smart Search is turned on, behind a swappable interface (`TextEmbedder`). Apple's `NLContextualEmbedding` was the plan until Phase 0 measured it (owner, 2026-09-30). The owner wants an Apple option: Spotlight's semantic search is tested in Phase 3b (2026-10-01) |
 | First on-device model feature | Tags at save time |
 | Minimum OS | Stays iOS 18 / macOS 15; model features only on iOS/macOS 26+ |
 | Scale | 4–10 links a day, depending on the person: about 1,500–3,650 a year |
@@ -368,6 +368,38 @@ What was built (StatemonoKit's `SmartSearch/`, `App/Chat/SmartSearch.swift`, `Ch
 - **The list and dropdown** show the related links under a Related header, after the matches.
 - **The chip** shows in the search panel while Smart Search is off and nothing was found, and opens Settings.
 - **Checked** in the iPhone simulator and a Mac harness, with the 90 test links: the chip, the download and preparing (90 links), "graduation speech" finding Steve Jobs's commencement address through the arrows and the list, a related row opening while there's a match, and turning off deleting the model, the vectors and the setting.
+
+### Phase 3b: test Spotlight's semantic search (planned, no app code)
+
+The owner asked on 2026-10-01 for an option from Apple, so Smart Search wouldn't download a model from Hugging Face. Apple's other text models lost to bge-small in Phase 0. Core Spotlight's semantic search is a different one, built for search, and it wasn't measured. If it isn't good enough, the owner would combine Phases 3 and 4 instead.
+
+**What the docs and SDKs say** (iOS 27 and macOS 27 SDKs, the WWDC24 session "Support semantic search with Core Spotlight", developer forums):
+- **How it works:** the app indexes each link as a `CSSearchableItem` with `title` and `textContent`, which go into the semantic index. Before search shows, the app calls `CSUserQuery.prepare()`. A search is a `CSUserQuery` with a `CSUserQueryContext`, read through `responses`.
+  - `enableRankedResults` turns on Apple's ranking, and the app sorts with `compareByRank`. `maxRankedResultCount` defaults to 100.
+  - `disableSemanticSearch` gives keyword-only results.
+- **No scores:** Apple returns a ranking, not similarity scores. Smart Search already uses no cutoff, so it would take the best 3 that keyword search missed, as now.
+- **Apple's model:** it downloads to the device and runs in the app's process (WWDC24). Nothing in the docs says which devices or OS versions get it, or whether it needs Apple Intelligence. The API exists from iOS 18 and macOS 15, the app's minimum.
+- **System search:** items indexed this way also show up in the device's Spotlight. App Intents' `IndexedEntity` has `hideInSpotlight` (iOS 18.4, macOS 15.4), indexed with `CSSearchableIndex.indexAppEntities`. The docs don't say whether `CSUserQuery` still finds hidden items.
+- **Risk: it may not work.** In a forum thread (developer.apple.com/forums/thread/793867), developers report that from iOS 18 through the iOS 26 beta and macOS 26.2 beta, semantic search returned the same results as keyword search. Their logs said "Text embedding generation timeout (timeout=100ms)".
+  - One developer got it working in April 2026 by sending a throwaway first query. They also said `disableSemanticSearch` behaved reversed.
+  - No one from Apple answered. The iOS 27 SDK adds only a Swift wrapper for item attributes, nothing for semantic search.
+
+**The test:**
+- **Tool:** a small Mac app, `Tools/SpotlightEval` (xcodegen, its own bundle ID). Spotlight indexes only for an app, so `SearchEval` can't do this from the command line. It reuses SearchEval's `Data/snapshot.json` (the 90 links' saved previews) and the 29 queries in `search-test-links.md`.
+- **Index:** the 90 links, with the same text the other models got (title, site, description and link). Two ways: plain `CSSearchableItem`s, and `IndexedEntity`s with `hideInSpotlight`. Time how long until search finds them.
+- **Search:** each query four ways: semantic on and off, each with and without a throwaway first query. Keep the top 10.
+- **Score** the way Phase 0 did:
+  - How many of the 7 meaning queries the 3 related links find.
+  - How often the right link comes first, and how often it's in the top 10, on its own.
+  - bge-small's numbers are the bar: 6 of 7, first in 21 of 29, top 10 in 26.
+- **Checks:**
+  - Semantic results must differ from keyword-only, or semantic search isn't running.
+  - `CSUserQuery` must find hidden entities. The owner checks that the system's Spotlight doesn't show them by typing a test link's title.
+- **Afterwards:** the app deletes its index, so nothing stays in the owner's Spotlight.
+- **Where:** this Mac first (macOS 27). The iPhone only if the Mac passes: the simulator may not have Apple's model, and a device build needs the iPhone registered with the team.
+- **Decision:** the owner's, from the numbers.
+  - If Spotlight matches bge-small, Smart Search switches to it and stops downloading. Devices without it would need bge-small or no Smart Search.
+  - If not, Phases 3 and 4 are combined, as the owner said. Tags alone don't find meaning: in Phase 0 they added none of the 7 meaning queries (Recall on the test set's 29 queries, "+ tags"), so combining means bge-small plus tags.
 
 ### Phase 4: Apple Intelligence tags
 

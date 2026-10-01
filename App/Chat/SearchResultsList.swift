@@ -69,7 +69,7 @@ private struct SearchSectionHeader: View {
             .padding(.horizontal, 16)
             .padding(.top, 7)
             .padding(.bottom, 5)
-            .background(Color.white.opacity(0.04))
+            .background(Theme.searchListHeaderFill)
             .accessibilityAddTraits(.isHeader)
     }
 }
@@ -89,7 +89,7 @@ private struct SearchResultRow: View {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text(title)
                         .font(.system(size: base * 16 / 17, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.text)
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     date(base: base)
@@ -117,13 +117,13 @@ private struct SearchResultRow: View {
             .lineLimit(1)
     }
 
-    /// Gray text with the matched words in white, as Telegram marks them.
+    /// Gray text with the matched words in the text color, as Telegram marks them.
     private func snippet(_ content: SearchRowContent, base: CGFloat) -> some View {
         let size = base * 15 / 17
         var text = AttributedString(content.snippet)
         text.foregroundColor = Theme.searchListSecondaryText
         for match in content.matches {
-            if let range = Range(match, in: text) { text[range].foregroundColor = .white }
+            if let range = Range(match, in: text) { text[range].foregroundColor = Theme.text }
         }
         let image = message.preview?.image
         return Group {
@@ -155,7 +155,7 @@ private struct SearchResultRow: View {
 private struct SearchResultRowStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .background(configuration.isPressed ? Color.white.opacity(0.06) : .clear)
+            .background(configuration.isPressed ? Theme.searchListPressed : .clear)
     }
 }
 #endif

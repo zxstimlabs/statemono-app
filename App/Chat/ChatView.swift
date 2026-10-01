@@ -182,7 +182,6 @@ struct ChatView: View {
         .ignoresSafeArea()
         .frame(minWidth: 380, minHeight: 320)
         #endif
-        .preferredColorScheme(.dark)
     }
 
     private var feed: some View {
@@ -633,7 +632,7 @@ private struct DaySeparator: View {
     var body: some View {
         Text(label)
             .font(.system(size: textSize.day, weight: .medium))
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.text)
             .padding(.horizontal, 9)
             .padding(.vertical, 3)
             .chromeBackground(Capsule())

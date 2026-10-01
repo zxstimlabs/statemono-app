@@ -18,7 +18,7 @@ struct MenuPanel<Content: View>: View {
     }
 }
 
-/// Telegram blurs what's behind the menu (a dark `NSVisualEffectView`) and tints it with the theme's background.
+/// Telegram blurs what's behind the menu (an `NSVisualEffectView`) and tints it with the theme's background.
 private struct MenuBackground: View {
     var body: some View {
         ZStack {
@@ -59,7 +59,7 @@ struct MenuRow: View {
                         .padding(.leading, 11)
                 }
             }
-            .foregroundStyle(isDestructive ? Theme.destructive : .white)
+            .foregroundStyle(isDestructive ? Theme.destructive : Theme.text)
             .padding(.horizontal, 11)
             .frame(height: 28)
             .background {

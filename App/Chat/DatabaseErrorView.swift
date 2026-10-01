@@ -60,6 +60,7 @@ struct LibraryError {
 /// The chat when the database is open, or why it isn't.
 struct RootView: View {
     @Environment(Library.self) private var library
+    @AppStorage(AppAppearance.key) private var appearance = AppAppearance.system
 
     var body: some View {
         @Bindable var library = library
@@ -82,6 +83,8 @@ struct RootView: View {
         } message: {
             Text("The old database was kept as \(library.movedAside?.lastPathComponent ?? "a backup"), next to the new one, so its links can still be recovered.")
         }
+        // Settings › Appearance. Theme's colors follow it.
+        .appAppearance(appearance)
     }
 }
 
@@ -132,12 +135,11 @@ struct DatabaseErrorView: View {
             .font(.system(size: 12))
             #endif
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(Theme.text)
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)
         .ignoresSafeArea()
-        .preferredColorScheme(.dark)
         .confirmationDialog("Start with a new database?", isPresented: $confirmsStartOver) {
             Button("Start Over", role: .destructive, action: onStartOver)
         } message: {

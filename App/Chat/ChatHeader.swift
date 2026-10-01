@@ -67,7 +67,7 @@ struct ChromeIconButton: View {
     let systemImage: String
     var size: CGFloat
     var weight: Font.Weight = .regular
-    var color: Color = .white
+    var color: Color = Theme.text
     let action: () -> Void
 
     var body: some View {

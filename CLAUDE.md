@@ -11,7 +11,7 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 
 ## Status
 - The feed reads from the SQLite database (GRDB) in `Packages/StatemonoKit/Sources/StatemonoKit/Database/`. Messages, previews, and the image index survive relaunches.
-- Built so far: feed with Telegram-style bubbles and link previews, composer, attach menu (items are stubs), message context menu (Copy Text and Delete work), in-chat search over all history with typo tolerance and a results list (iPhone) or dropdown (Mac), Smart Search (finds links by meaning, downloaded on opt-in), a Settings sheet from the header's gear, send animation, paging, app icon, scroll-to-bottom button. On iOS, a hide-keyboard button.
+- Built so far: feed with Telegram-style bubbles and link previews, composer, attach menu (items are stubs), message context menu (Copy Text and Delete work), in-chat search over all history with typo tolerance and a results list (iPhone) or dropdown (Mac), Smart Search (finds links by meaning, downloaded on opt-in), a Settings sheet from the header's gear (Appearance and Search pages), light and dark themes, send animation, paging, app icon, scroll-to-bottom button. On iOS, a hide-keyboard button.
 - Sending a link fetches its preview on the device (`Packages/StatemonoKit/Sources/StatemonoKit/LinkPreviews/`). X posts and ordinary websites are covered.
 - The iOS target compiles the same `App/` sources but its UI is only partly tuned. Its text follows the system Text Size (see UI reference), its keyboard behaves like Telegram-iOS's (see iOS keyboard), and its bubbles are as wide as Telegram-iOS allows (see UI reference).
 - Stubs: paperclip menu items, mic, and the context menu's Reply, Translate, Edit, Pin, Forward and Select.
@@ -22,15 +22,16 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 3. Metadata: fxtwitter for X, oEmbed (YouTube/TikTok/Vimeo/Spotify), OpenGraph, LPMetadataProvider fallback. **X and OpenGraph websites done.** Still to do: oEmbed and the LPMetadataProvider fallback. Images are cached on disk like Telegram (see Link previews).
 4. Share extension + App Group
 5. Sync: undecided. Options are CloudKit now, my own server (PocketBase/Go) from the start, or no sync in v1. Don't run CloudKit and a server side by side. The server is what lets a Linux (Omarchy/Hyprland) desktop join.
-- Search beyond keywords: planned in `docs/search-plan.md`. Phases 1 (typo tolerance), 2 (Settings, results list) and 3 (Smart Search) are built. Phase 0's `Tools/SearchEval` (a command-line package, not part of the apps) measures search on the links and 29 queries in `docs/search-test-links.md`. On them Apple's text model found 1 of 7 meaning queries and bge-small found 6, so Smart Search uses bge-small (see Smart Search below). Build later phases only when the owner names them.
+- Search beyond keywords: planned in `docs/search-plan.md`. Phases 1 (typo tolerance), 2 (Settings, results list) and 3 (Smart Search) are built. Phase 0's `Tools/SearchEval` (a command-line package, not part of the apps) measures search on the links and 29 queries in `docs/search-test-links.md`. On them Apple's text model found 1 of 7 meaning queries and bge-small found 6, so Smart Search uses bge-small (see Smart Search below). Phase 3b, planned on 2026-10-01, tests Spotlight's semantic search as an Apple replacement for bge-small. Build later phases only when the owner names them.
   - It's progressive. The app installs light, with nothing bundled, downloaded or running in the background.
   - English only.
   - Typo tolerance is part of Basic search, always on.
-  - Smart Search (bge-small, downloaded on opt-in) and Apple Intelligence tags are separate opt-in steps in the Settings sheet's Search section. Unsupported devices and OS versions get an explanation.
+  - Smart Search (bge-small, downloaded on opt-in) and Apple Intelligence tags are separate opt-in steps on the Settings sheet's Search page. Unsupported devices and OS versions get an explanation.
   - Everything runs on the device.
 
 ## UI reference
 - The target is Telegram for macOS, night theme. Colors and sizes in `App/Chat/Theme.swift` (`Theme`, `Metrics`) were measured from 2x screenshots, so measure new screens the same way rather than guessing.
+- Light mode is Telegram's "Day" theme (the owner's choice over Day Classic, 2026-10-01): blue bubbles with white text on plain white. Its values come from TelegramSwift's `whitePalette` and Telegram-iOS's `DefaultDayPresentationTheme`, not a screenshot yet. Each `Theme` color holds both (`Color(light:dark:)`, a dynamic `NSColor`/`UIColor`), so views use `Theme` colors, never `.white` or `.black`. Inside a bubble everything stays white in both themes.
 - Text sizes come from `ChatTextSize` (`Theme.swift`, read through the environment). The Mac keeps its measured 13/12/11/12pt (message, preview, time, day pill). iOS copies Telegram-iOS's "Use System Text Size": the system body size snaps to Telegram's steps (14, 15, 16, 17, 19, 23, 26; 17 by default), messages and the composer use it, previews 14/17 of it, times 11/17, day pills 13/17.
 - Bubble widths: the Mac keeps its measured caps (400pt text, 282pt previews, at least 56pt free on the left). iOS follows Telegram-iOS's `ChatMessageItemWidthFill`: the limit comes from the row's width (`Metrics.bubbleLeadingSpace`), and previews fill that width. Telegram's bubbles reach 43pt from the left edge of an upright phone; the owner found that too wide, so bubbles here leave 41pt more (`Metrics.extraLeadingSpace`) and reach 84pt (the owner moved it from 60pt to 68pt, 76pt, then 84pt, on 2026-09-30, for room to tap beside them). Past 500pt a bubble fills 85% of the row, 65% past 680pt.
   - `BubbleRow`, a `Layout`, applies it, because a layout is given the row's width without reading geometry in each bubble. `ChatView` measures the feed's width once (`feedWidth`), only to decode preview images at the width they're drawn.
@@ -115,7 +116,10 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 
 ### Search results and Settings
 - Settings is a sheet over the chat on both platforms (`App/Settings/SettingsView.swift`), opened by the header's gear. On the Mac, ⌘, and the app menu's Settings… open the same sheet through a focused scene value (`SettingsCommands`), not a Settings window.
-  - It imports FoundationModels, which iOS 18 and macOS 15 lack. Xcode weak-links it on its own (`LC_LOAD_WEAK_DYLIB`, checked with `otool -l`); keep every use behind `#available(iOS 26, macOS 26, *)`.
+  - Its first page lists Appearance and Search, with Telegram-iOS's settings icons (30pt tiles, radius 8; 20pt on the Mac). Each opens its own page in a `NavigationStack`, on the Mac too, where the sheet shows a back button. Native grouped `Form`s throughout; the owner likes the native look.
+  - Appearance (`AppearanceSettings.swift`) is System, Light or Dark, per device in `UserDefaults` (`appearance`). System is the default, as in both Telegram apps. `appAppearance` applies it: the window's `overrideUserInterfaceStyle` on iOS, `NSApp.appearance` on the Mac. Not `preferredColorScheme`: on iOS 18, going back to System (nil) left the open sheet in the old appearance.
+  - Inside a pushed page `dismiss` only goes back a page, so the iPhone's Done buttons call `closeSettings` from the environment.
+  - The Search page (`SearchSettings.swift`) imports FoundationModels, which iOS 18 and macOS 15 lack. Xcode weak-links it on its own (`LC_LOAD_WEAK_DYLIB`, checked with `otool -l`); keep every use behind `#available(iOS 26, macOS 26, *)`.
 - The search results list (`ChatSearch.rows`, loaded 100 at a time) has one form per platform. `SearchRowContent` and `SearchSnippet` pick each row's text, cut it around the first match and find the matched words, the way Telegram-iOS's search rows do.
 - iPhone: Telegram-iOS's "Show as List" (`SearchResultsList`), an opaque page over the chat, under the header, search panel and composer.
   - It fades in over 0.2s, grows from 0.95 and sharpens from a 30pt blur while the chat behind shrinks to 0.95 (`setList(shown:)`), and reverses on the way out.
@@ -202,10 +206,10 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 - After adding or removing files, run `xcodegen generate`. The `.xcodeproj` lists files explicitly.
 - Build both schemes after UI changes. `App/` is shared, so a Mac change can break the iOS build.
 - The terminal has no Screen Recording permission, so `screencapture` fails. An app can capture its own windows, though. To check the UI, build the `App/Chat` sources into a small scratch harness app that opens the same window.
-  - For pixels, use `CGWindowListCreateImage` on the harness's own window. It's obsoleted in the SDK, so look it up with `dlsym`.
+  - For pixels, use `CGWindowListCreateImage` on the harness's own window. It's obsoleted in the SDK, so look it up with `dlsym`. Pass the window's ID (`optionIncludingWindow`), never a screen rect: on 2026-10-01 a rect capture took in the owner's other windows and macOS asked to let the terminal bypass the screen-sharing picker.
   - `NSView.cacheDisplay` is faster, but it misses masks, render-time effects, and Core Animation animations, so it can show bugs that aren't there.
   - For motion, log the clip view's bounds changes with timestamps.
-  - Make the harness a regular, frontmost app. macOS throttles display links in windows that aren't in front.
+  - Make the harness a regular, frontmost app. macOS throttles display links in windows that aren't in front. Started from the terminal, it may stay behind the app in front; then posted ⌘, didn't open Settings, but a synthetic click on the gear did.
   - For a synthetic click, queue the mouse-up (`NSApp.postEvent`) before sending the mouse-down. A text field tracks the mouse until the mouse-up arrives, so sending the two in order hangs.
   - Synthetic clicks can leave the harness window inactive, and then ⌘ shortcuts never arrive. Activate the window again before sending one.
   - The composer isn't focused when the harness opens. Click it before posting key events to type.

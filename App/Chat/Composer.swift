@@ -20,13 +20,13 @@ struct Composer: View {
             circleButton(action: onAttach) {
                 Image(systemName: "paperclip")
                     .font(.system(size: 19))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.text)
             }
 
             TextField("", text: $text, prompt: Text("Write a message...").foregroundStyle(Theme.secondaryText), axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.system(size: textSize.message))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.text)
                 .lineLimit(1...10)
                 .focused(focus, equals: .composer)
                 .onSubmit(onSend)
@@ -45,7 +45,7 @@ struct Composer: View {
                 // One symbol that morphs between mic and send, rather than two views that swap.
                 Image(systemName: canSend ? "paperplane.fill" : "mic")
                     .font(.system(size: canSend ? 16 : 19))
-                    .foregroundStyle(canSend ? Theme.accent : .white)
+                    .foregroundStyle(canSend ? Theme.accent : Theme.text)
                     .contentTransition(.symbolEffect(.replace))
                     .animation(.smooth(duration: 0.2), value: canSend)
             }

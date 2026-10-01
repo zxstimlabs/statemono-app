@@ -21,7 +21,7 @@ struct SearchField: View {
             TextField("", text: $search.query, prompt: Text("Search").foregroundStyle(Theme.secondaryText))
                 .textFieldStyle(.plain)
                 .font(.system(size: textSize.message))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.text)
                 .focused(focus, equals: .search)
                 .onSubmit {
                     #if os(macOS)
@@ -135,7 +135,7 @@ struct SearchPanel: View {
             if !search.steps.isEmpty {
                 Button(search.isShowingList ? "Show as Chat" : "Show as List", action: onToggleList)
                     .font(.system(size: textSize.preview))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.text)
                     .lineLimit(1)
                     .fixedSize()
                     .buttonStyle(.pressFeedback)
