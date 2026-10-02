@@ -6,20 +6,24 @@ import UIKit
 #endif
 
 /// What a message's context menu offers: TelegramSwift's items for your own message in Saved Messages
-/// (`chatMenuItems`). Only Copy Text and Delete do anything yet.
+/// (`chatMenuItems`), plus Tags, which Telegram doesn't have. Only Copy Text, Tags and Delete do anything yet.
 enum MessageMenuItem: CaseIterable, Identifiable {
-    case reply, translate, copyText, edit, pin, forward, select, delete
+    case reply, translate, copyText, tags, edit, pin, forward, select, delete
 
     var id: Self { self }
 
-    /// Telegram's groups, in its order, with a separator between each.
-    static let groups: [[MessageMenuItem]] = [[.reply], [.translate, .copyText], [.edit, .pin, .forward, .select], [.delete]]
+    /// Telegram's groups, in its order, with a separator between each. Tags joins Copy Text while Apple Intelligence
+    /// tags are on (`AppleIntelligenceTags.showsMenuItem`).
+    static func groups(showsTags: Bool) -> [[MessageMenuItem]] {
+        [[.reply], showsTags ? [.translate, .copyText, .tags] : [.translate, .copyText], [.edit, .pin, .forward, .select], [.delete]]
+    }
 
     var title: String {
         switch self {
         case .reply: String(localized: "Reply")
         case .translate: String(localized: "Translate")
         case .copyText: String(localized: "Copy Text")
+        case .tags: String(localized: "Tags")
         case .edit: String(localized: "Edit")
         case .pin: String(localized: "Pin")
         case .forward: String(localized: "Forward")
@@ -33,6 +37,7 @@ enum MessageMenuItem: CaseIterable, Identifiable {
         case .reply: "arrowshape.turn.up.left"
         case .translate: "translate"
         case .copyText: "doc.on.doc"
+        case .tags: "tag"
         case .edit: "square.and.pencil"
         case .pin: "pin"
         case .forward: "arrowshape.turn.up.right"
@@ -59,17 +64,18 @@ enum MessageMenuItem: CaseIterable, Identifiable {
 
 /// A message's context menu, drawn like Telegram's.
 struct MessageMenu: View {
+    let groups: [[MessageMenuItem]]
     var highlighted: MessageMenuItem?
     var onHover: (MessageMenuItem, Bool) -> Void
     var onSelect: (MessageMenuItem) -> Void
 
     var body: some View {
         MenuPanel {
-            ForEach(MessageMenuItem.groups.indices, id: \.self) { index in
+            ForEach(groups.indices, id: \.self) { index in
                 if index > 0 {
                     MenuSeparator()
                 }
-                ForEach(MessageMenuItem.groups[index]) { item in
+                ForEach(groups[index]) { item in
                     MenuRow(
                         title: item.title,
                         systemImage: item.systemImage,
@@ -101,16 +107,18 @@ final class MessageMenuState {
     let messageID: Message.ID
     /// Where the pointer was, in the chat view's coordinates.
     let point: CGPoint
+    let groups: [[MessageMenuItem]]
     private(set) var highlighted: MessageMenuItem?
     @ObservationIgnored private var hovered: MessageMenuItem?
     @ObservationIgnored private var typed = ""
     @ObservationIgnored private var typedAt = Date.distantPast
 
-    private static let items = MessageMenuItem.groups.flatMap(\.self)
+    private var items: [MessageMenuItem] { groups.flatMap(\.self) }
 
-    init(messageID: Message.ID, point: CGPoint) {
+    init(messageID: Message.ID, point: CGPoint, groups: [[MessageMenuItem]]) {
         self.messageID = messageID
         self.point = point
+        self.groups = groups
     }
 
     func hover(_ item: MessageMenuItem, _ isHovered: Bool) {
@@ -152,24 +160,24 @@ final class MessageMenuState {
         if event.keyCode == 53 { return .close } // Escape
         let characters = event.charactersIgnoringModifiers?.lowercased() ?? ""
         if event.modifierFlags.contains(.command) {
-            return Self.items.first { $0.keyEquivalent == characters }.map(Command.select)
+            return items.first { $0.keyEquivalent == characters }.map(Command.select)
         }
         // Typing selects the first item whose title starts with what's been typed. A 0.3s pause starts over.
         guard !characters.isEmpty, characters.allSatisfy({ $0.isLetter || $0 == " " }) else { return nil }
         typed = Date.now.timeIntervalSince(typedAt) < 0.3 ? typed + characters : characters
         typedAt = .now
-        if let item = Self.items.first(where: { $0.title.lowercased().hasPrefix(typed) }) {
+        if let item = items.first(where: { $0.title.lowercased().hasPrefix(typed) }) {
             highlighted = item
         }
         return nil
     }
 
     private func move(by step: Int) {
-        guard let index = highlighted.flatMap(Self.items.firstIndex(of:)) else {
-            highlighted = step > 0 ? Self.items.first : Self.items.last
+        guard let index = highlighted.flatMap(items.firstIndex(of:)) else {
+            highlighted = step > 0 ? items.first : items.last
             return
         }
-        highlighted = Self.items[min(max(index + step, 0), Self.items.count - 1)]
+        highlighted = items[min(max(index + step, 0), items.count - 1)]
     }
 }
 
@@ -190,7 +198,7 @@ struct MessageMenuOverlay: View {
                     .contentShape(Rectangle())
                     .onTapGesture(perform: onClose)
                 MenuPlacement(point: menu.point) {
-                    MessageMenu(highlighted: menu.highlighted, onHover: menu.hover, onSelect: onSelect)
+                    MessageMenu(groups: menu.groups, highlighted: menu.highlighted, onHover: menu.hover, onSelect: onSelect)
                 }
                 // Telegram scales the menu up from 0.1 around the pointer. Scaling the whole placement around the
                 // pointer does that wherever the menu ended up relative to it.

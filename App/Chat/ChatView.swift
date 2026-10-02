@@ -40,6 +40,10 @@ struct ChatView: View {
     /// A message waiting for the user to confirm deleting it.
     @State private var pendingDelete: Message.ID?
     @State private var showsSettings = false
+    /// The message whose Tags sheet is open.
+    @State private var tagsTarget: TagsTarget?
+    /// A tag chosen in the Tags sheet, searched for once the sheet has gone.
+    @State private var pendingTagSearch: String?
 
     var body: some View {
         feed
@@ -104,7 +108,7 @@ struct ChatView: View {
         #if os(iOS)
         .overlay {
             if let presentation = contextMenu.presentation {
-                FeedContextMenuOverlay(presentation: presentation) { item in
+                FeedContextMenuOverlay(presentation: presentation, groups: menuGroups) { item in
                     contextMenu.didClose()
                     if let item { perform(item, on: presentation.id) }
                 }
@@ -144,7 +148,13 @@ struct ChatView: View {
             Text("Delete selected message?")
         }
         .sheet(isPresented: $showsSettings) {
-            SettingsView(smartSearch: store.smartSearch, sync: store.sync)
+            SettingsView(smartSearch: store.smartSearch, tags: store.tags, sync: store.sync)
+        }
+        .sheet(item: $tagsTarget, onDismiss: searchPendingTag) { target in
+            TagsSheet(messageID: target.id, tags: store.tags) { tag in
+                pendingTagSearch = tag
+                tagsTarget = nil
+            }
         }
         #if os(macOS)
         // ⌘, and the app menu's Settings… item open the same sheet (`SettingsCommands`).
@@ -498,9 +508,27 @@ struct ChatView: View {
         guard let message = store.messages.first(where: { $0.id == id }) else { return }
         switch item {
         case .copyText: Pasteboard.copy(message.text)
+        case .tags: tagsTarget = TagsTarget(id: id)
         case .delete: pendingDelete = id
         case .reply, .translate, .edit, .pin, .forward, .select: break
         }
+    }
+
+    /// A message's menu, with Tags while Apple Intelligence tags are on.
+    private var menuGroups: [[MessageMenuItem]] {
+        MessageMenuItem.groups(showsTags: store.tags.showsMenuItem)
+    }
+
+    /// Searches for the tag chosen in the Tags sheet, as if it had been typed in the search field.
+    private func searchPendingTag() {
+        guard let tag = pendingTagSearch else { return }
+        pendingTagSearch = nil
+        search.query = tag
+        openSearch()
+        #if os(macOS)
+        // The Mac shows results in a dropdown while the search field has focus.
+        focus = .search
+        #endif
     }
 
     /// Below 1 while a finger holds the message's bubble, before its menu opens (iOS).
@@ -549,7 +577,7 @@ struct ChatView: View {
         else { return false }
         let location = view.convert(event.locationInWindow, from: nil)
         withAnimation(Self.menuFade) {
-            messageMenu = MessageMenuState(messageID: message.id, point: location)
+            messageMenu = MessageMenuState(messageID: message.id, point: location, groups: menuGroups)
         }
         return true
     }
@@ -643,4 +671,9 @@ private struct DaySeparator: View {
 extension EnvironmentValues {
     /// Folded search terms to highlight in bubbles; empty when search is closed.
     @Entry var searchTerms: [String] = []
+}
+
+/// Which message's Tags sheet is open.
+struct TagsTarget: Identifiable {
+    let id: Message.ID
 }

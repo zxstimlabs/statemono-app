@@ -75,10 +75,14 @@ extension AppDatabase {
 
     /// The live items whose vectors are closest to `query`, best first, leaving out `excluded` (the keyword matches).
     /// Every vector is compared, which takes a few milliseconds even for tens of thousands of links. They're kept in
-    /// memory until items or vectors change.
-    public func relatedItems(to query: [Float], model: String, excluding excluded: Set<UUID>, count: Int) async throws -> [UUID] {
-        let index = try await vectorIndex(model: model)
+    /// memory until items or vectors change. `centered` compares them with the average link vector subtracted from
+    /// each, query included, which Apple's model needs (`TextEmbedder.centersVectors`).
+    public func relatedItems(
+        to query: [Float], model: String, centered: Bool = false, excluding excluded: Set<UUID>, count: Int
+    ) async throws -> [UUID] {
+        let index = try await vectorIndex(model: model, centered: centered)
         guard index.ids.count > 0, query.count == index.dimension else { return [] }
+        let query = centered ? Self.centered(query, mean: index.mean) : query
         var scores = [Float](repeating: 0, count: index.ids.count)
         index.matrix.withUnsafeBufferPointer { matrix in
             cblas_sgemv(
@@ -108,9 +112,9 @@ extension AppDatabase {
         return FeedObservation(cancellable)
     }
 
-    private func vectorIndex(model: String) async throws -> VectorIndex {
+    private func vectorIndex(model: String, centered: Bool) async throws -> VectorIndex {
         let version = try await writer.read { db in try VectorIndexVersion(db, model: model) }
-        if let cached = vectorIndexCache.withLock({ $0 }), cached.version == version {
+        if let cached = vectorIndexCache.withLock({ $0 }), cached.version == version, cached.isCentered == centered {
             return cached
         }
         let index = try await writer.read { db in
@@ -129,7 +133,20 @@ extension AppDatabase {
                 ids.append(row[0])
                 matrix += vector
             }
-            return VectorIndex(version: try VectorIndexVersion(db, model: model), ids: ids, matrix: matrix, dimension: dimension)
+            var mean = [Float](repeating: 0, count: dimension)
+            if centered, !ids.isEmpty {
+                for row in 0..<ids.count {
+                    vDSP.add(mean, matrix[(row * dimension)..<((row + 1) * dimension)], result: &mean)
+                }
+                mean = vDSP.divide(mean, Float(ids.count))
+                matrix = (0..<ids.count).flatMap { row in
+                    Self.centered(Array(matrix[(row * dimension)..<((row + 1) * dimension)]), mean: mean)
+                }
+            }
+            return VectorIndex(
+                version: try VectorIndexVersion(db, model: model), ids: ids, matrix: matrix, dimension: dimension,
+                isCentered: centered, mean: mean
+            )
         }
         vectorIndexCache.withLock { $0 = index }
         return index
@@ -140,8 +157,21 @@ extension AppDatabase {
 struct VectorIndex: Sendable {
     let version: VectorIndexVersion
     let ids: [UUID]
+    /// Centered and normalized again when `isCentered`.
     let matrix: [Float]
     let dimension: Int
+    let isCentered: Bool
+    /// The average link vector, subtracted from each when `isCentered`.
+    let mean: [Float]
+}
+
+extension AppDatabase {
+    /// `vector` less the average link vector, made length 1 again.
+    static func centered(_ vector: [Float], mean: [Float]) -> [Float] {
+        let difference = vDSP.subtract(vector, mean)
+        let length = sqrt(vDSP.sumOfSquares(difference))
+        return length > 0 ? vDSP.divide(difference, length) : difference
+    }
 }
 
 /// Changes whenever the index would: a vector saved or removed, or an item deleted (which changes its `updatedAt`).

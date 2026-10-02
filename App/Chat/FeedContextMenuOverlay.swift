@@ -10,6 +10,7 @@ import UIKit
 /// grow out from the bubble's old bottom edge.
 struct FeedContextMenuOverlay: View {
     let presentation: FeedContextMenu.Presentation
+    let groups: [[MessageMenuItem]]
     /// Called once the menu has animated out, with the item that was picked, if any.
     var onClose: (MessageMenuItem?) -> Void
 
@@ -29,8 +30,9 @@ struct FeedContextMenuOverlay: View {
     /// The backdrop fading, and everything going back on close.
     private static let fade = Animation.easeInOut(duration: 0.2)
 
-    init(presentation: FeedContextMenu.Presentation, onClose: @escaping (MessageMenuItem?) -> Void) {
+    init(presentation: FeedContextMenu.Presentation, groups: [[MessageMenuItem]], onClose: @escaping (MessageMenuItem?) -> Void) {
         self.presentation = presentation
+        self.groups = groups
         self.onClose = onClose
         _bubbleScale = State(initialValue: presentation.pressScale)
     }
@@ -41,7 +43,7 @@ struct FeedContextMenuOverlay: View {
                 bubble: presentation.frame.offsetBy(dx: -proxy.frame(in: .global).minX, dy: -proxy.frame(in: .global).minY),
                 safeArea: presentation.safeArea,
                 size: proxy.size,
-                actions: ContextActionList.size(textSize: textSize.message)
+                actions: ContextActionList.size(textSize: textSize.message, groups: groups)
             )
             ZStack {
                 BlurBackdrop(isShown: isBackdropShown)
@@ -79,7 +81,7 @@ struct FeedContextMenuOverlay: View {
                 .allowsHitTesting(false)
                 .scaleEffect(bubbleScale)
                 .offset(x: layout.bubble.minX, y: isLifted ? layout.liftedY : restingY)
-            ContextActionList(textSize: textSize.message) { item in
+            ContextActionList(groups: groups, textSize: textSize.message) { item in
                 close(item)
             }
             .frame(width: layout.actions.width, height: layout.actions.height)
@@ -169,6 +171,7 @@ private struct MenuLayout {
 /// chat's text size, with the icon's 32pt column 20pt in and the title from 60pt. Groups are split by 20pt gaps with a
 /// hairline. A pressed row lights up in a rounded rectangle inset 10pt.
 private struct ContextActionList: View {
+    let groups: [[MessageMenuItem]]
     let textSize: CGFloat
     var onSelect: (MessageMenuItem) -> Void
 
@@ -181,8 +184,7 @@ private struct ContextActionList: View {
     }
 
     /// Known before it's laid out, so the menu can place the bubble and the actions together.
-    static func size(textSize: CGFloat) -> CGSize {
-        let groups = MessageMenuItem.groups
+    static func size(textSize: CGFloat, groups: [[MessageMenuItem]]) -> CGSize {
         let rows = CGFloat(groups.joined().count)
         let height = padding * 2 + rows * rowHeight(textSize: textSize) + CGFloat(groups.count - 1) * separatorHeight
         let font = UIFont.systemFont(ofSize: textSize)
@@ -193,14 +195,14 @@ private struct ContextActionList: View {
     var body: some View {
         let rowHeight = Self.rowHeight(textSize: textSize)
         VStack(spacing: 0) {
-            ForEach(MessageMenuItem.groups.indices, id: \.self) { index in
+            ForEach(groups.indices, id: \.self) { index in
                 if index > 0 {
                     Theme.contextMenuSeparator
                         .frame(height: 1)
                         .padding(.horizontal, 18)
                         .frame(height: Self.separatorHeight)
                 }
-                ForEach(MessageMenuItem.groups[index]) { item in
+                ForEach(groups[index]) { item in
                     Button {
                         onSelect(item)
                     } label: {

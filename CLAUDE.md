@@ -11,7 +11,7 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 
 ## Status
 - The feed reads from the SQLite database (GRDB) in `Packages/StatemonoKit/Sources/StatemonoKit/Database/`. Messages, previews, and the image index survive relaunches.
-- Built so far: feed with Telegram-style bubbles and link previews, composer, attach menu (items are stubs), message context menu (Copy Text and Delete work), in-chat search over all history with typo tolerance and a results list (iPhone) or dropdown (Mac), Smart Search (finds links by meaning, downloaded on opt-in), a Settings sheet from the header's gear (Appearance and Search pages), light and dark themes, send animation, paging, app icon, scroll-to-bottom button. On iOS, a hide-keyboard button.
+- Built so far: feed with Telegram-style bubbles and link previews, composer, attach menu (items are stubs), message context menu (Copy Text, Tags and Delete work), in-chat search over all history with typo tolerance and a results list (iPhone) or dropdown (Mac), Smart Search (finds links by meaning, with Apple's on-device model by default), Apple Intelligence tags, a Settings sheet from the header's gear (Appearance and Search pages), light and dark themes, send animation, paging, app icon, scroll-to-bottom button. On iOS, a hide-keyboard button.
 - Sending a link fetches its preview on the device (`Packages/StatemonoKit/Sources/StatemonoKit/LinkPreviews/`). X posts and ordinary websites are covered.
 - The iOS target compiles the same `App/` sources but its UI is only partly tuned. Its text follows the system Text Size (see UI reference), its keyboard behaves like Telegram-iOS's (see iOS keyboard), and its bubbles are as wide as Telegram-iOS allows (see UI reference).
 - Stubs: paperclip menu items, mic, and the context menu's Reply, Translate, Edit, Pin, Forward and Select.
@@ -22,11 +22,11 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
 3. Metadata: fxtwitter for X, oEmbed (YouTube/TikTok/Vimeo/Spotify), OpenGraph, LPMetadataProvider fallback. **X and OpenGraph websites done.** Still to do: oEmbed and the LPMetadataProvider fallback. Images are cached on disk like Telegram (see Link previews).
 4. Share extension + App Group
 5. Sync: CloudKit with `CKSyncEngine` for Apple devices (owner, 2026-10-01), planned in `docs/sync-plan.md`. Other devices come later. Don't run CloudKit and a server side by side; a server (PocketBase/Go) is what would let a Linux (Omarchy/Hyprland) desktop join.
-- Search beyond keywords: planned in `docs/search-plan.md`. Phases 1 (typo tolerance), 2 (Settings, results list) and 3 (Smart Search) are built. Phase 0's `Tools/SearchEval` (a command-line package, not part of the apps) measures search on the links and 29 queries in `docs/search-test-links.md`. On them Apple's text model found 1 of 7 meaning queries and bge-small found 6, so Smart Search uses bge-small (see Smart Search below). Phase 3b, planned on 2026-10-01, tests Spotlight's semantic search as an Apple replacement for bge-small. Build later phases only when the owner names them.
+- Search beyond keywords: planned in `docs/search-plan.md`. Phases 1 (typo tolerance), 2 (Settings, results list), 3 (Smart Search) and 4 (Apple Intelligence tags, and Apple first) are built. Phase 0's `Tools/SearchEval` (a command-line package, not part of the apps) measures search on the links and 29 queries in `docs/search-test-links.md`. On them Apple's text model found 1 of 7 meaning queries and bge-small found 6. Still, the owner made Apple's on-device AI the first-class option on 2026-10-01, even where it isn't the best: Smart Search runs on Apple's model by default, and bge-small is an optional "More accurate" download. Phase 3b (Spotlight's semantic search) is paused. Build later phases only when the owner names them.
   - It's progressive. The app installs light, with nothing bundled, downloaded or running in the background.
   - English only.
   - Typo tolerance is part of Basic search, always on.
-  - Smart Search (bge-small, downloaded on opt-in) and Apple Intelligence tags are separate opt-in steps on the Settings sheet's Search page. Unsupported devices and OS versions get an explanation.
+  - Smart Search (Apple's model, or bge-small when "More accurate" is on) and Apple Intelligence tags are separate steps on the Settings sheet's Search page, both on by default where they can run. Unsupported devices and OS versions get an explanation.
   - Everything runs on the device.
 
 ## UI reference
@@ -131,9 +131,10 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
   - Opening a row, or using the panel's arrows, takes focus away, which closes it.
 
 ### Smart Search
-- Smart Search finds links by meaning (docs/search-plan.md, Phase 3). It's off until turned on in Settings, which downloads BAAI's bge-small-en-v1.5 (MIT, 133.7 MB) from Hugging Face. `SearchModel.bgeSmall` pins the revision and each file's SHA-256.
-  - The files go to Application Support/<bundle id>/Models, excluded from backups (`SearchModelStore`). Turning Smart Search off deletes them and every vector, after a confirmation.
-  - The switch is per device, in `UserDefaults` (`smartSearch.enabled`).
+- Smart Search finds links by meaning (docs/search-plan.md, Phases 3 and 4). It's on by default with Apple's on-device English model, `NLContextualEmbedding` (`AppleEmbedder`): the system provides it, and fetches its files the first time if they're missing, with a 90-second limit. Its token vectors are averaged, and links are compared centered (`TextEmbedder.centersVectors`: the average link vector subtracted from each), as Phase 0 measured it.
+  - "More accurate Smart Search" downloads BAAI's bge-small-en-v1.5 (MIT, 133.7 MB) from Hugging Face and uses it instead. `SearchModel.bgeSmall` pins the revision and each file's SHA-256. A device that had downloaded it before Apple's model became the default keeps it on.
+  - The files go to Application Support/<bundle id>/Models, excluded from backups (`SearchModelStore`). Turning "More accurate" off deletes them, and turning Smart Search off deletes them and every vector, each after a confirmation.
+  - The switches are per device, in `UserDefaults` (`smartSearch.enabled`, on by default; `smartSearch.accurate`). Vectors record their model, so switching makes them again.
 - `BertEmbedder` (StatemonoKit's `SmartSearch/`) runs the model with Accelerate, with its own WordPiece tokenizer and a memory-mapped `.safetensors` reader. Don't bring swift-embeddings into the app: it's about ten packages, a 40MB prebuilt library among them. `Tools/SearchEval` uses it only to check the app's version (`swift run -c release -Xswiftc -enable-testing SearchEval check`).
   - StatemonoKit defines `ACCELERATE_NEW_LAPACK` with `unsafeFlags`, for the current CBLAS interface. That works because the package is local; a remote dependency can't use unsafe flags.
   - The download uses a download task with its own session delegate (`FileDownload`). URLSession's async `download(from:delegate:)` never reported progress.
@@ -141,6 +142,16 @@ Telegram "Saved Messages" for links: share or paste a link, it shows up as a cha
   - Vectors live in `itemVector`, with the model and revision, and the SHA-256 of the text they were made from (`AppDatabase.vectorText`: title, site, description, text). Changed text gets a new vector. Like previews, vectors don't touch `updatedAt` or `isDirty`.
 - A search adds the 3 links closest in meaning that keyword search missed (`ChatSearch.related`). The list and dropdown show them after the matches, under Related. The arrows step through the matches, or through the related links when nothing matched ("1 of 3 related"), because after a right match they were mostly wrong in Phase 0.
   - While Smart Search is off and nothing is found, the search panel shows a Smart Search chip that opens Settings.
+
+### Apple Intelligence tags
+- `AppleIntelligenceTags` (`App/Chat/AppleIntelligenceTags.swift`) asks Apple Intelligence's content-tagging model (`SystemLanguageModel(useCase: .contentTagging)`, iOS/macOS 26+) for 3–8 keywords per link, with Phase 0's instructions (English tags whatever the text's language). It's on by default wherever Apple Intelligence is available, per device (`tags.enabled`).
+  - Links are tagged one at a time while the app is open, newest first, once their preview is in. Low Power Mode pauses it. It took about 1.5s a link on this Mac.
+  - Each link is tagged once. Re-tag All (Settings, `tags.retagAllSince`) and a link's Re-tag button ask again.
+  - A refusal (guardrail, unsupported language, too long) marks the link tried. Any other failure (backgrounded, busy) stops the pass without marking it, and it resumes when the app comes back. Both error types count: `GenerationError` (iOS 26) and `LanguageModelError` (iOS 27).
+- Tags are stored on `item` (`tags`, one per line; `tagsAttemptedAt`; `tagsOSVersion`) and indexed in `itemSearch`'s `tags` column, so keyword search matches them. Migration `v4 tags` recreated the FTS table, and GRDB rebuilt it. A result found only through tags is `SearchMatch.tag`.
+  - Saving tags doesn't touch `updatedAt` or `isDirty`, so they never sync; each device makes its own.
+- A message's menu gets Tags while tags are on (`MessageMenuItem.groups(showsTags:)`). It opens `TagsSheet`: the tags, or "Not tagged yet", and Re-tag. Choosing a tag closes the sheet and searches for it.
+- The iPhone simulator here has neither Apple's text model nor Apple Intelligence. Smart Search times out to "isn't available right now", and tags wait. Test them on the Mac harness, or on a device.
 
 ### iCloud sync
 - Messages sync through the user's private iCloud with Apple's `CKSyncEngine` (`docs/sync-plan.md`). StatemonoKit's `Sync/` holds the merge rules (`AppDatabase+Sync`) and the engine's delegate (`CloudKitSync`). `App/Chat/ICloudSync.swift` runs it and keeps the status, and `App/Settings/ICloudSettings.swift` is Settings › iCloud.

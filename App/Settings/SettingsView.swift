@@ -5,6 +5,7 @@ import SwiftUI
 /// top, as the system puts the account, then Appearance and Search.
 struct SettingsView: View {
     let smartSearch: SmartSearch
+    let tags: AppleIntelligenceTags
     let sync: ICloudSync
     @Environment(\.dismiss) private var dismiss
     @AppStorage(AppAppearance.key) private var appearance = AppAppearance.system
@@ -53,7 +54,7 @@ struct SettingsView: View {
                         }
                     }
                     NavigationLink {
-                        SearchSettings(smartSearch: smartSearch)
+                        SearchSettings(smartSearch: smartSearch, tags: tags)
                     } label: {
                         SettingsLabel("Search", systemImage: "magnifyingglass", color: Color(hex: 0x8E8E93))
                     }

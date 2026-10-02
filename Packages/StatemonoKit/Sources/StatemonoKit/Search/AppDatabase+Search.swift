@@ -2,7 +2,7 @@ import Foundation
 import GRDB
 
 extension AppDatabase {
-    /// Items where every word of `query` starts a word in the text or preview, newest first, ignoring case and
+    /// Items where every word of `query` starts a word in the text, preview or tags, newest first, ignoring case and
     /// accents: "grd" finds "GRDB". A word that matches nothing as typed also tries other spellings in the index
     /// (`SearchVocabulary.alternatives`), so "levenshtien" finds "Levenshtein".
     public func search(_ query: String) async throws -> SearchResults {
@@ -23,12 +23,17 @@ extension AppDatabase {
         let hasAlternatives = alternatives.contains { !$0.isEmpty }
 
         let items = try await writer.read { db in
-            let found = try Self.items(matching: hasAlternatives ? tolerant : prefix, db)
+            let pattern = hasAlternatives ? tolerant : prefix
+            let found = try Self.items(matching: pattern, db)
             guard !found.isEmpty else { return [SearchResult]() }
             let exactMatches = Set(try Self.items(matching: exact, db))
             let prefixMatches = hasAlternatives ? Set(try Self.items(matching: prefix, db)) : Set(found)
+            // Found only with the tags' help: no word in the item itself to highlight.
+            let contentMatches = Set(try Self.items(matching: "- {tags} : (\(pattern))", db))
             return found.map { id in
-                SearchResult(id: id, match: exactMatches.contains(id) ? .exact : prefixMatches.contains(id) ? .prefix : .typo)
+                let match: SearchMatch = !contentMatches.contains(id) ? .tag
+                    : exactMatches.contains(id) ? .exact : prefixMatches.contains(id) ? .prefix : .typo
+                return SearchResult(id: id, match: match)
             }
         }
         return SearchResults(items: items, highlights: words + alternatives.flatMap { $0.map(\.text) })
@@ -97,17 +102,19 @@ struct CachedVocabulary: Sendable {
     let vocabulary: SearchVocabulary
 }
 
-/// Changes whenever the index's words may have: an item added, edited or deleted (`updatedAt`), or a preview saved.
-/// It's cheap to read, and it also sees writes from other processes, such as the share extension.
+/// Changes whenever the index's words may have: an item added, edited or deleted (`updatedAt`), a preview saved, or tags
+/// made. It's cheap to read, and it also sees writes from other processes, such as the share extension.
 struct VocabularyVersion: Equatable, Sendable {
     let count: Int
     let lastUpdate: String?
     let lastPreview: String?
+    let lastTags: String?
 
     init(_ db: Database) throws {
-        let row = try Row.fetchOne(db, sql: "SELECT count(*), max(updatedAt), max(previewFetchedAt) FROM item")
+        let row = try Row.fetchOne(db, sql: "SELECT count(*), max(updatedAt), max(previewFetchedAt), max(tagsAttemptedAt) FROM item")
         count = row?[0] ?? 0
         lastUpdate = row?[1]
         lastPreview = row?[2]
+        lastTags = row?[3]
     }
 }

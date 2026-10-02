@@ -23,6 +23,10 @@ public struct Item: Codable, Hashable, Sendable, Identifiable {
     public var previewImageIsLarge: Bool
     /// When the preview was last fetched, or nil if it hasn't been. A fetch that finds nothing still sets it.
     public var previewFetchedAt: Date?
+    /// Apple Intelligence's tags, one per line, made on this device and never synced (`AppDatabase+Tags`).
+    public var tags: String?
+    public var tagsAttemptedAt: Date?
+    public var tagsOSVersion: String?
 
     init(text: String, link: URL?, date: Date) {
         id = UUID()
@@ -51,6 +55,9 @@ extension Item: FetchableRecord, MutablePersistableRecord {
         public static let deletedAt = Column(CodingKeys.deletedAt)
         public static let isDirty = Column(CodingKeys.isDirty)
         public static let previewFetchedAt = Column(CodingKeys.previewFetchedAt)
+        public static let tags = Column(CodingKeys.tags)
+        public static let tagsAttemptedAt = Column(CodingKeys.tagsAttemptedAt)
+        public static let tagsOSVersion = Column(CodingKeys.tagsOSVersion)
     }
 }
 

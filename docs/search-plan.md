@@ -1,6 +1,6 @@
 # Search plan: progressive search
 
-Status: draft, updated 2026-10-01. Phases 1 (typo tolerance), 2 (Settings and the results list) and 3 (Smart Search, with bge-small) are built. Phase 0 is done: on 29 queries Apple's text model found 1 of 7 meaning queries and bge-small found 6, so Smart Search uses bge-small (see Phase 0 results and Phase 3). Phase 3b, planned: test Spotlight's semantic search, Apple's model with nothing to download, as a replacement for bge-small.
+Status: draft, updated 2026-10-02. Phase 4 (Apple Intelligence tags, and Apple first) is built. Phases 1 (typo tolerance), 2 (Settings and the results list) and 3 (Smart Search, with bge-small) are built. Phase 0 is done: on 29 queries Apple's text model found 1 of 7 meaning queries and bge-small found 6, so Smart Search uses bge-small (see Phase 0 results and Phase 3). Phase 3b, planned: test Spotlight's semantic search, Apple's model with nothing to download, as a replacement for bge-small.
 
 ## The idea
 
@@ -23,8 +23,8 @@ In-chat search goes through the FTS5 table `itemSearch` (`AppDatabase.search`).
 | Question | Decision |
 |---|---|
 | Rollout | Progressive: light by default, opt-in steps in a Smart Search section, on-device only, with explanations for unsupported devices |
-| Engine for meaning-based search | BAAI's bge-small-en-v1.5, downloaded from Hugging Face when Smart Search is turned on, behind a swappable interface (`TextEmbedder`). Apple's `NLContextualEmbedding` was the plan until Phase 0 measured it (owner, 2026-09-30). The owner wants an Apple option: Spotlight's semantic search is tested in Phase 3b (2026-10-01) |
-| First on-device model feature | Tags at save time |
+| Engine for meaning-based search | Apple's `NLContextualEmbedding` by default: no download, on wherever it runs (owner, 2026-10-01: Apple's on-device AI is the first-class option, even where it isn't the best). BAAI's bge-small-en-v1.5 is an optional "More accurate" download from Hugging Face. Both sit behind `TextEmbedder`. In Phase 0 Apple's model found 1 of 7 meaning queries and bge-small 6. Phase 3b (Spotlight) is paused |
+| First on-device model feature | Tags at save time, on by default wherever Apple Intelligence is available (owner, 2026-10-01) |
 | Minimum OS | Stays iOS 18 / macOS 15; model features only on iOS/macOS 26+ |
 | Scale | 4–10 links a day, depending on the person: about 1,500–3,650 a year |
 | Language | English only |
@@ -401,9 +401,37 @@ The owner asked on 2026-10-01 for an option from Apple, so Smart Search wouldn't
   - If Spotlight matches bge-small, Smart Search switches to it and stops downloading. Devices without it would need bge-small or no Smart Search.
   - If not, Phases 3 and 4 are combined, as the owner said. Tags alone don't find meaning: in Phase 0 they added none of the 7 meaning queries (Recall on the test set's 29 queries, "+ tags"), so combining means bge-small plus tags.
 
-### Phase 4: Apple Intelligence tags
+### Phase 4: Apple Intelligence tags, and Apple first (2026-10-01)
 
 - **Scope:** iOS/macOS 26+ only, behind the availability checks. Includes the Tags menu item, the tags sheet, Re-tag for one link and Re-tag All.
+- **Apple first** (owner, 2026-10-01: "lean more into on-device AI native from Apple, even if it's not the best, as first-class"):
+  - **Tags** are on by default wherever Apple Intelligence is available, with a switch to turn them off.
+  - **Smart Search** is on by default, running Apple's `NLContextualEmbedding`, which the system provides (no download). Vectors are compared centered, as Phase 0 found best for it.
+  - **More accurate Smart Search** is an optional switch that downloads bge-small (133.7 MB) and uses it instead. Devices that already downloaded it keep it on.
+  - **Settings › Search order:** Basic, Smart Search (Apple), More accurate (bge-small), Apple Intelligence tags, Storage.
+
+What was built (2026-10-02):
+- **StatemonoKit:**
+  - Migration `v4 tags`: `item` gains `tags`, `tagsAttemptedAt` and `tagsOSVersion`, and `itemSearch` is recreated with a `tags` column.
+  - `AppDatabase+Tags`: the queue, saving, Re-tag All, removal and storage size.
+  - `SearchMatch.tag` for results found only through tags.
+  - `AppleEmbedder`, for `NLContextualEmbedding`.
+  - `relatedItems(…centered:)`.
+- **App:**
+  - `AppleIntelligenceTags`, the tagging engine.
+  - `SmartSearch`, with Apple's model by default and bge-small as "More accurate".
+  - Settings › Search's new rows and confirmations.
+  - The Tags menu item, on both menus.
+  - `TagsSheet`.
+- **Tested:**
+  - Unit tests (`TagsTests`): links waiting for previews, tag matches, refusals, Re-tag All, removal, centered ranking. 63 tests pass.
+  - The migration on a copy of the 90-link database: half a second, with the index and its triggers rebuilt.
+  - **Mac harness, with both of Apple's models available:**
+    - Defaults on: 52 links tagged in 80 seconds and all 90 given vectors by Apple's model.
+    - "note taking" found Obsidian through its tag "note-taking" alone.
+    - The Tags sheet opened from the menu, and choosing "ai" searched for it.
+  - **iPhone simulator:** neither model exists there. Smart Search gave up after 90 seconds with Try Again, and tags showed that they were waiting for Apple Intelligence.
+- **Seen in testing:** Apple's model's related links are loose, as Phase 0 predicted. For "note taking" they were GitHub's Swift page, PocketBase and Linear.
 
 ### Later, each as its own opt-in step
 

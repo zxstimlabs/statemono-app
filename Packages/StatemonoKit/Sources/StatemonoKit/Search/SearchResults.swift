@@ -1,6 +1,6 @@
 import Foundation
 
-/// How a search result matched the query. Later tiers of the search plan add matches by tag and by meaning.
+/// How a search result matched the query. Matches by meaning come separately, as related links.
 public enum SearchMatch: Hashable, Sendable {
     /// Every query word is a whole word in the item.
     case exact
@@ -8,6 +8,8 @@ public enum SearchMatch: Hashable, Sendable {
     case prefix
     /// At least one query word matched only through another spelling.
     case typo
+    /// It needed Apple Intelligence's tags: some query word is in them but not in the item itself.
+    case tag
 }
 
 public struct SearchResult: Hashable, Sendable {

@@ -14,6 +14,13 @@ public protocol TextEmbedder: Sendable {
     var modelID: String { get }
     var dimension: Int { get }
     func vector(for text: String, role: TextRole) -> [Float]
+    /// Whether vectors compare better centered: the average link vector subtracted from every vector first. Apple's
+    /// model needs it; bge-small doesn't (Phase 0).
+    var centersVectors: Bool { get }
+}
+
+extension TextEmbedder {
+    public var centersVectors: Bool { false }
 }
 
 /// A BERT text encoder run on the CPU with Accelerate: bge-small-en-v1.5 for Smart Search. The weights are read in

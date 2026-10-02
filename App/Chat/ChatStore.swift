@@ -21,6 +21,8 @@ final class ChatStore {
     @ObservationIgnored let database: AppDatabase
     /// Finds links by meaning, once turned on in Settings.
     @ObservationIgnored let smartSearch: SmartSearch
+    /// Apple Intelligence's tags for each link, which keyword search matches.
+    @ObservationIgnored let tags: AppleIntelligenceTags
     /// Syncs messages through iCloud (docs/sync-plan.md). Its changes reach the feed through the database, like sends.
     @ObservationIgnored let sync: ICloudSync
     @ObservationIgnored private let previews: LinkPreviewFetcher?
@@ -37,6 +39,7 @@ final class ChatStore {
         self.database = database
         self.previews = previews
         smartSearch = SmartSearch(database: database)
+        tags = AppleIntelligenceTags(database: database)
         sync = ICloudSync(database: database)
         start = try? database.feedStart(newest: Self.pageSize)
         observe()

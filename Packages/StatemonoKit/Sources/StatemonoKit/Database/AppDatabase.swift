@@ -6,7 +6,7 @@ import Synchronization
 /// - `item`: messages, with their link preview's text and the id of its image (Postbox's message table).
 /// - `media`: one row per image, with its size, placeholder, and cached file's size and last use. It indexes the files
 ///   in `MediaStore` and drives cleanup (Telegram's StorageBox).
-/// - `itemSearch`: an FTS5 index over item text and preview text, with the đ → d fix.
+/// - `itemSearch`: an FTS5 index over item text, preview text and Apple Intelligence tags, with the đ → d fix.
 /// - `itemVector`: Smart Search's vector for each item, while Smart Search is on (`AppDatabase+Vectors`).
 /// - `itemSync` and `syncState`: what the sync backend has, and its saved state (`AppDatabase+Sync`).
 public final class AppDatabase: Sendable {
@@ -127,6 +127,29 @@ public final class AppDatabase: Sendable {
             try db.create(table: "syncState") { t in
                 t.primaryKey("backend", .text)
                 t.column("data", .blob).notNull()
+            }
+        }
+        // Apple Intelligence tags (docs/search-plan.md, Phase 4). The search index gains a `tags` column. FTS5 tables can't
+        // gain columns, so the index is made again; GRDB rebuilds it from `item`, which reads only what's already here.
+        migrator.registerMigration("v4 tags") { db in
+            try db.alter(table: "item") { t in
+                // The tags, one per line, or nil until a try succeeds. A failed try keeps what was there.
+                t.add(column: "tags", .text)
+                // Nil until a try finishes, and set even when the model gave nothing, like `previewFetchedAt`.
+                t.add(column: "tagsAttemptedAt", .datetime)
+                // The model has no version of its own and updates with the OS, so the OS version stands in.
+                t.add(column: "tagsOSVersion", .text)
+            }
+            try db.dropFTS5SynchronizationTriggers(forTable: "itemSearch")
+            try db.drop(table: "itemSearch")
+            try db.create(virtualTable: "itemSearch", using: FTS5()) { t in
+                t.synchronize(withTable: "item")
+                t.tokenizer = StatemonoTokenizer.tokenizerDescriptor()
+                t.column("text")
+                t.column("previewSiteName")
+                t.column("previewTitle")
+                t.column("previewSummary")
+                t.column("tags")
             }
         }
         return migrator
