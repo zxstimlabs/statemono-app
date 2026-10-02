@@ -1,6 +1,6 @@
 # Search plan: progressive search
 
-Status: draft, updated 2026-10-02. Phase 4 (Apple Intelligence tags, and Apple first) is built. Phases 1 (typo tolerance), 2 (Settings and the results list) and 3 (Smart Search, with bge-small) are built. Phase 0 is done: on 29 queries Apple's text model found 1 of 7 meaning queries and bge-small found 6, so Smart Search uses bge-small (see Phase 0 results and Phase 3). Phase 3b, planned: test Spotlight's semantic search, Apple's model with nothing to download, as a replacement for bge-small.
+Status: draft, updated 2026-10-02. Phase 4 (Apple Intelligence tags, and Apple first) is built and went to TestFlight as 0.1.17 (21). Phases 1 (typo tolerance), 2 (Settings and the results list) and 3 (Smart Search, with bge-small) are built. Phase 0 is done: on 29 queries Apple's text model found 1 of 7 meaning queries and bge-small found 6, so Smart Search uses bge-small (see Phase 0 results and Phase 3). Phase 3b, planned: test Spotlight's semantic search, Apple's model with nothing to download, as a replacement for bge-small.
 
 ## The idea
 
